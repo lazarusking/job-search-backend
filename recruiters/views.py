@@ -1,0 +1,177 @@
+from rest_framework import viewsets
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes, action
+from rest_framework import status
+from django.core.paginator import Paginator
+from django.utils.decorators import method_decorator
+from django.shortcuts import get_object_or_404
+from .models import Job, Applicants, Selected
+from .permissions import IsOwner, IsJobOwner
+from .serializers import JobSerializer, ApplicantSerializer, SelectedSerializer
+from .decorators import recruiter_required, normal_user_required
+from accounts.models import Recruiter, User
+from accounts.serializers import UserSerializer, RecruiterSerializer, ProfileSerializer, RecruiterProfile, RecruiterProfileSerializer
+
+
+# @api_view(['GET'])
+# @method_decorator([recruiter_required],name='dispatch')
+class JobsViewSet(viewsets.ModelViewSet):
+    """List, retreive operations for a job"""
+
+    serializer_class = JobSerializer
+    queryset = Job.objects.all().order_by("-id")
+
+    permission_classes = [IsJobOwner]
+    # def get_object(self):
+    #     return self.request.user.recruiterprofile
+    #     return super().get_object()
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+    #     recruiter_pk = self.kwargs.get('recruiter_pk')
+    #     user = self.request.user
+    #     # print(user, recruiter_pk, queryset)
+    #     if recruiter_pk:
+    #         queryset = queryset.filter(recruiter__username=recruiter_pk)
+    #     return queryset
+
+
+    @action(detail=True, methods=['get'])
+    def applicants(self, request, *args, **kwargs):
+        job = self.get_object()
+        print(request.user)
+
+        # applicants = Applicants.objects.filter(job=job)
+        applicants = job.applicants.all()
+        serializer = ApplicantSerializer(applicants, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def selected(self, request, *args, **kwargs):
+        job = self.get_object()
+        print(request.user)
+
+        # applicants = Applicants.objects.filter(job=job)
+        applicants = job.selected.all()
+        serializer = SelectedSerializer(applicants, many=True)
+        return Response(serializer.data)
+
+
+class RecruitersView(viewsets.ModelViewSet):
+    """Operations for recruiters """
+
+    serializer_class = RecruiterProfileSerializer
+    queryset = User.objects.all().filter(is_recruiter=True).order_by('-id')
+    lookup_field = 'username'
+    permission_classes = [IsOwner]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return RecruiterSerializer
+        elif self.action == 'retrieve':
+            return RecruiterProfileSerializer
+        else:
+            return super().get_serializer_class()
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = RecruiterProfileSerializer(
+            instance.recruiterprofile, data=request.data, many=False)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # return super().update(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        recruiter_pk = self.kwargs.get('username')
+        # instance = self.get_object()
+        instance = request.user
+        print(instance.recruiterprofile, request.user)
+        serializer = RecruiterProfileSerializer(
+            instance.recruiterprofile, many=False)
+        # print(serializer.data)
+        return Response(serializer.data)
+
+
+class ApplicantsView(viewsets.ModelViewSet):
+    """Get applicants managed by a particular recruiter"""
+
+    serializer_class = JobSerializer
+    queryset = Job.objects.all().order_by("-id")
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        super().get_queryset()
+        user = self.request.user
+        print(user)
+        return Applicants.objects.filter(job=user)
+
+    @action(detail=True, methods=['get'])
+    def applicants(self, request, pk):
+        job = self.get_object()
+        # applicants = Applicants.objects.filter(job=job)
+        applicants = job.applicants.all()
+        serializer = ApplicantSerializer(applicants, many=True)
+        return Response(serializer.data)
+
+
+class ApplicantsAPIView(APIView):
+    def get(self, request, id):
+        try:
+            job = Job.objects.get(pk=id)
+            print(job)
+            # applicants = Applicants.objects.filter(job=job)
+            applicants = job.applicants.all()
+        except Job.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        serializer = ApplicantSerializer(applicants, many=True)
+        # print(serializer.data)
+        return Response(serializer.data)
+
+@api_view(['GET'])
+def job_search_list(request):
+    query = request.GET.get('p')
+    loc = request.GET.get('q')
+    object_list = []
+    print(query, loc)
+    if (query == None):
+        object_list = Job.objects.all()
+    else:
+        title_list = Job.objects.filter(
+            title__icontains=query).order_by('-date_posted')
+        skill_list = Job.objects.filter(
+            skills_required__icontains=query).order_by('-date_posted')
+        company_list = RecruiterProfile.objects.filter(
+            company__icontains=query).order_by('-date_posted')
+        job_type_list = Job.objects.filter(
+            job_type__icontains=query).order_by('-date_posted')
+        for i in title_list:
+            object_list.append(i)
+        for i in skill_list:
+            if i not in object_list:
+                object_list.append(i)
+        for i in company_list:
+            if i not in object_list:
+                object_list.append(i)
+        for i in job_type_list:
+            if i not in object_list:
+                object_list.append(i)
+    if (loc == None):
+        locat = Job.objects.all()
+    else:
+        locat = Job.objects.filter(
+            location__icontains=loc).order_by('-date_posted')
+    final_list = []
+    for i in object_list:
+        if i in locat:
+            final_list.append(i)
+    paginator = Paginator(final_list, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    context = {
+        'jobs': page_obj,
+        'query': query,
+    }
+    return Response(context)
