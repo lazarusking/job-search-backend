@@ -32,7 +32,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
 
 class SelectedSerializer(serializers.ModelSerializer):
     job = JobSerializer(many=False, read_only=True)
-    applicant = ApplicantSerializer(many=True)
+    applicant = UserSerializer(read_only=True)
 
     class Meta:
         model = Selected
