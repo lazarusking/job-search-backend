@@ -24,6 +24,9 @@ class JobsViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all().order_by("-id")
 
     permission_classes = [IsJobOwner]
+    def perform_create(self, serializer):
+        serializer.save(recruiter=self.request.user)
+        return super().perform_create(serializer)
     # def get_object(self):
     #     return self.request.user.recruiterprofile
     #     return super().get_object()
@@ -54,6 +57,7 @@ class JobsViewSet(viewsets.ModelViewSet):
 
         # applicants = Applicants.objects.filter(job=job)
         applicants = job.selected.all()
+        print(repr(applicants))
         serializer = SelectedSerializer(applicants, many=True)
         return Response(serializer.data)
 
