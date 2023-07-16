@@ -8,7 +8,7 @@ from django.core.paginator import Paginator
 from django.utils.decorators import method_decorator
 from django.shortcuts import get_object_or_404
 from .models import Job, Applicants, Selected
-from .permissions import IsOwner, IsJobOwner
+from .permissions import IsOwner, IsJobOwner, IsOwnerOrReadOnly
 from .serializers import JobSerializer, ApplicantSerializer, SelectedSerializer
 from .decorators import recruiter_required, normal_user_required
 from accounts.models import Recruiter, User
@@ -24,6 +24,12 @@ class JobsViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.all().order_by("-id")
 
     permission_classes = [IsJobOwner]
+
+    # def get_permissions(self):
+    #     if self.action == 'list':
+    #         return [IsOwnerOrReadOnly]
+    #     return super().get_permissions()
+
     def perform_create(self, serializer):
         serializer.save(recruiter=self.request.user)
         return super().perform_create(serializer)
@@ -39,6 +45,22 @@ class JobsViewSet(viewsets.ModelViewSet):
     #         queryset = queryset.filter(recruiter__username=recruiter_pk)
     #     return queryset
 
+    @action(detail=False, methods=['get'])
+    def details(self, request, *args, **kwargs):
+        queryset = super().get_queryset()
+        print(repr(queryset))
+        final_list = []
+        for i in queryset:
+            extra = i.job_extra_details()
+            print(extra)
+            final_list.append(extra)
+        paginator = Paginator(final_list, 20)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        context = {
+            'jobs': final_list,
+        }
+        return Response(context)
 
     @action(detail=True, methods=['get'])
     def applicants(self, request, *args, **kwargs):
@@ -133,6 +155,7 @@ class ApplicantsAPIView(APIView):
         serializer = ApplicantSerializer(applicants, many=True)
         # print(serializer.data)
         return Response(serializer.data)
+
 
 @api_view(['GET'])
 def job_search_list(request):
