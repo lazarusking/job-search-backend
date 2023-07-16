@@ -1,5 +1,5 @@
 from django.db import models
-
+import datetime
 # Create your models here.
 # from django.contrib.auth.models import User
 from django.contrib import admin
@@ -46,6 +46,18 @@ class Job(models.Model):
     def has_job_expired(self):
         now = timezone.now()
         return now > self.deadline
+
+    def job_extra_details(self):
+        now = timezone.now()
+        two_days_ago = now - datetime.timedelta(days=2)
+        new_users = self.applicants.filter(
+            date_posted__gte=two_days_ago).count()
+        return {'title': self.title,
+                'user_count': self.applicants.count(),
+                'new_users': new_users,
+                'job_type': self.job_type,
+                'location': self.location,
+                }
 
     def get_absolute_url(self):
         return "/job/{}".format(self.slug)
