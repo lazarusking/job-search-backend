@@ -3,12 +3,13 @@ from dj_rest_auth.registration.views import RegisterView, VerifyEmailView, Confi
 from dj_rest_auth.views import LoginView, LogoutView
 from dj_rest_auth.views import PasswordResetView, PasswordResetConfirmView
 from accounts import views
-from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView,TokenVerifyView
 
 urlpatterns = [
     # Normal User Auth
     path('login/', views.MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('login/verify/', TokenVerifyView.as_view(), name='token_verify'),
 
     # Recruiter Auth
     path('login/recruiter/', views.MyTokenObtainPairView.as_view(),
