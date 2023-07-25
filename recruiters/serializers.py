@@ -1,8 +1,10 @@
-from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Job, Applicants, Selected
 from django.contrib.auth import get_user_model
-from accounts.serializers import UserSerializer,ProfileSerializer
+from rest_framework import serializers
+
+from accounts.serializers import UserSerializer
+
+from .models import Applicants, Job, Selected
+
 User = get_user_model()
 
 
