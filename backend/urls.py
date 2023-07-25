@@ -16,21 +16,24 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path, re_path
+
 # from students import views
 from django.conf import settings
 from django.conf.urls.static import static
 
+import accounts
+
 urlpatterns = [
     # path('polls/', include('polls.urls')),
-    path('admin/', admin.site.urls),
-    path('api/auth/', include('accounts.auth.urls')),
-    path('api/users/', include('accounts.urls')),
-    path('api/recruiters/', include('recruiters.urls')),
-    path('', include('rest_framework.urls')),
+    path("admin/", admin.site.urls),
+    path("api/auth/", include("accounts.auth.urls")),
+    path("api/users/", include("accounts.urls")),
+    path("api/recruiters/", include("recruiters.urls")),
+    path("api/countries/", accounts.views.get_countries),
+    path("", include("rest_framework.urls")),
     # path('api/students/', include('students.urls'))
     # re_path(r'^api/students/$', views.students_list),
     # re_path(r'^api/students/([0-9])$', views.students_detail)
 ]
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL,
-                          document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
