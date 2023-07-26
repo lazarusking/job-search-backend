@@ -143,7 +143,7 @@ class RecruiterRegisterSerializer(RegisterSerializer):
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedRelatedField(
-        view_name="index:user-detail", read_only=True, lookup_field="id"
+        view_name="index", read_only=True, lookup_field="id"
     )
 
     class Meta:
@@ -160,15 +160,22 @@ class RecruiterSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(CountryFieldMixin, serializers.HyperlinkedModelSerializer):
-    user = UserSerializer(many=False, read_only=True)
+    user = UserSerializer(many=False,read_only=True)
     url = serializers.HyperlinkedRelatedField(
-        view_name="profile-detail", read_only=True, lookup_field="username"
+        view_name="profile-detail", read_only=True, lookup_field="slug"
     )
-
+    # avatar = serializers.ImageField()
+    # resume = serializers.FileField()
     class Meta:
         model = Profile
         fields = "__all__"
         read_only_fields = ["created_at"]
+
+    # def update(self, instance:Profile, validated_data):
+    #     print(repr(instance))
+    #     print(validated_data)
+    #     print(instance.user)
+    #     return super().update(instance, validated_data)
 
         # fields = ('user', 'first_name', 'last_name', 'email')
 

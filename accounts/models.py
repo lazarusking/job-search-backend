@@ -1,10 +1,15 @@
-
 # Create your models here.
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.db import models
 from django.contrib.auth.base_user import BaseUserManager, AbstractBaseUser
-from django.contrib.auth.models import AbstractUser, UserManager, PermissionsMixin, Group, Permission
+from django.contrib.auth.models import (
+    AbstractUser,
+    UserManager,
+    PermissionsMixin,
+    Group,
+    Permission,
+)
 from django.utils import timezone
 from django.core.validators import (
     MaxValueValidator,
@@ -18,8 +23,7 @@ from autoslug import AutoSlugField
 
 
 class User(AbstractUser):
-    email = models.EmailField(
-        max_length=255, blank=True, null=True, unique=True)
+    email = models.EmailField(max_length=255, blank=True, null=True, unique=True)
     # phone_number = PhoneNumberField(blank=True, null=True)
     is_recruiter = models.BooleanField(
         "recruiter status",
@@ -54,6 +58,7 @@ class User(AbstractUser):
 #     #     db_table = 'user'
 #     #     ordering = ('-first_name',)
 
+
 class Recruiter(User):
     # is_recruiter = models.BooleanField(
     #     "recruiter status",
@@ -62,7 +67,7 @@ class Recruiter(User):
     # )
 
     class Meta:
-        db_table = 'recruiter'
+        db_table = "recruiter"
 
     def clean(self):
         self.set_recruiter()
@@ -78,34 +83,34 @@ class Recruiter(User):
 
 class Profile(models.Model):
     GENDER = (
-        ('MALE', 'MALE'),
-        ('FEMALE', 'FEMALE'),
+        ("MALE", "MALE"),
+        ("FEMALE", "FEMALE"),
     )
     CHOICES = (
-        ('Full Time', 'Full Time'),
-        ('Part Time', 'Part Time'),
-        ('Internship', 'Internship'),
-        ('Remote', 'Remote'),
+        ("Full Time", "Full Time"),
+        ("Part Time", "Part Time"),
+        ("Internship", "Internship"),
+        ("Remote", "Remote"),
     )
 
     # user = models.OneToOneField(User, on_delete=models.CASCADE)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    slug = AutoSlugField(populate_from='user', unique=True, null=True)
-    avatar = models.ImageField(upload_to="avatars/", blank=True)
+    slug = AutoSlugField(populate_from="user", unique=True, null=True)
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
     phone_number = PhoneNumberField(blank=True, null=True)
     description = models.TextField(default="", blank=True)
     country = CountryField(blank_label="(select country)", blank=True)
     created_at = models.DateTimeField(default=timezone.now)
-    gender = models.CharField(
-        max_length=255, blank=True, null=True, choices=GENDER)
+    gender = models.CharField(max_length=255, blank=True, null=True, choices=GENDER)
 
     address = models.CharField(max_length=50, blank=True)
     date_of_birth = models.DateField(
         validators=[MaxValueValidator(timezone.now().date())], blank=True, null=True
     )
     looking_for = models.CharField(
-        max_length=30, choices=CHOICES, default='Full Time', null=True)
-    resume = models.FileField(upload_to="resumes/", blank=True)
+        max_length=30, choices=CHOICES, default="Full Time", null=True
+    )
+    resume = models.FileField(upload_to="resumes/", blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
     linkedin = models.URLField(max_length=256, blank=True)
     facebook = models.URLField(max_length=255, blank=True)
@@ -122,8 +127,7 @@ class Profile(models.Model):
         today = timezone.now()
         born = self.date_of_birth
         self.age = (
-            today.year - born.year -
-            ((today.month, today.day) < (born.month, born.day))
+            today.year - born.year - ((today.month, today.day) < (born.month, born.day))
         )
 
 
@@ -133,7 +137,7 @@ class Profile(models.Model):
 
 class RecruiterProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    slug = AutoSlugField(populate_from='user', unique=True, null=True)
+    slug = AutoSlugField(populate_from="user", unique=True, null=True)
     avatar = models.ImageField(upload_to="avatars/", blank=True)
     company = models.CharField(max_length=200, blank=True)
     phone_number = PhoneNumberField(blank=True, null=True)
@@ -158,7 +162,7 @@ class RecruiterProfile(models.Model):
 @receiver(post_save, sender=User)
 @receiver(post_save, sender=Recruiter)
 def create_user_profile(sender, instance, created, **kwargs):
-    print('***', created, instance.is_recruiter)
+    print("***", created, instance.is_recruiter)
     print(repr(instance))
     # if created:
     #     if hasattr(instance, 'is_recruiter') and instance.is_recruiter:

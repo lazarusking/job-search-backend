@@ -104,6 +104,7 @@ class RecruitersView(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = RecruiterProfileSerializer(
             instance.recruiterprofile, data=request.data, many=False)
+        print(request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)

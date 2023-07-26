@@ -1,10 +1,12 @@
 # Create your views here.
 # permission_classes= (permissions.IsAuthenticated)
+import json
 from django.http import JsonResponse
 from django_countries import countries, Countries
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework import status
@@ -52,8 +54,8 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = ProfileSerializer
     queryset = User.objects.all().order_by("-id")
     lookup_field = "pk"
-
-    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAuthenticated, IsAuthenticatedOrReadOnly]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -65,14 +67,24 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         try:
-            instance = self.get_object()
+            instance:User = self.get_object()
             # print(repr(instance.profile), 'profile instance')
             instance = instance.profile
         except Profile.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
         serializer = ProfileSerializer(instance, data=request.data, many=False)
+        print(request.data)
+        print(request.POST.get("user"))
+        # user_data = json.loads(request.data["user"])
+        # # user_data = request.data
+        # # instance.username=
+        # print(user_data)
+        user_serializer = UserSerializer(request.user, data=request.data)
+        user_serializer.is_valid(raise_exception=True)
+        user_serializer.save()
         if serializer.is_valid():
+            # user, data=request.data,
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -114,24 +126,26 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-@api_view(["GET", "PUT", "DELETE"])
+@api_view(["GET", "PUT", "DELETE", "PATCH"])
 # @permission_classes([IsAuthenticatedOrReadOnly,IsOwnerOrReadOnly])
 def user_profile(request, pk):
     try:
-        user = User.objects.get(pk=pk)
-        # user = request.user
+        # user = User.objects.get(pk=pk)
+        user = request.user
+        print(pk)
     except User.DoesNotExist or Profile.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     if request.method == "GET":
-        serializer = ProfileSerializer(user.profile, context={"request": None})
+        serializer = UserSerializer(user, context={"request": None})
         return Response(serializer.data)
-    # if request.method == 'PUT':
-    #     serializer = UserSerializer(
-    #         student, data=request.data, context={'request': request})
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(status=status.HTTP_204_NO_CONTENT)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == "PATCH":
+        serializer = UserSerializer(
+            user, data=request.data, context={"request": request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # elif request.method == 'DELETE':
     #     student.delete()
@@ -171,7 +185,7 @@ def get_profile(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(["OPTIONS","GET"])
+@api_view(["OPTIONS", "GET"])
 @permission_classes([IsAuthenticated])
 def get_countries(request):
     # country_list = [{"code": code, "name": name} for code, name in countries]
