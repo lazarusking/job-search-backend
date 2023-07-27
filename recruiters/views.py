@@ -94,7 +94,7 @@ class JobsViewSet(viewsets.ModelViewSet):
         # return Response(serializer.data)
 
         self.serializer_class = SelectedSerializer
-        applicants = job.selected.all()
+        applicants = job.selected.all().order("-id")
         page = self.paginate_queryset(applicants)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -102,30 +102,30 @@ class JobsViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
 
-    @action(
-        detail=True, url_path="select/(?P<id>[^/.]+)", methods=["get", "put", "delete"]
-    )
-    def select(self, request, pk=None, *args, **kwargs):
-        job = self.get_object()
-        print(request.user)
-        print(self.kwargs, kwargs)
-        self.lookup_url_kwarg = "pk"
-        self.queryset = Selected.objects.all()
-        self.serializer_class = SelectedSerializer
-        print(repr(self.get_object()), repr(job))
-        user = self.get_object()
+    # @action(
+    #     detail=True, url_path="select/(?P<id>[^/.]+)", methods=["get", "put", "delete"]
+    # )
+    # def select(self, request, pk=None, *args, **kwargs):
+    #     job = self.get_object()
+    #     print(request.user)
+    #     print(self.kwargs, kwargs)
+    #     self.lookup_url_kwarg = "pk"
+    #     self.queryset = Selected.objects.all().order("-id")
+    #     self.serializer_class = SelectedSerializer
+    #     print(repr(self.get_object()), repr(job))
+    #     user = self.get_object()
 
-        if request.method == "PUT":
-            serializer = SelectedSerializer(user, data=request.data, many=False)
-            if serializer.is_valid():
-                serializer.save(job=job, applicant_id=self.kwargs["id"])
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     if request.method == "PUT":
+    #         serializer = SelectedSerializer(user, data=request.data, many=False)
+    #         if serializer.is_valid():
+    #             serializer.save(job=job, applicant_id=self.kwargs["id"])
+    #             return Response(serializer.data, status=status.HTTP_201_CREATED)
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        applicants = job.selected.all()
-        print(repr(applicants))
-        serializer = SelectedSerializer(applicants, many=True)
-        return Response(serializer.data)
+    #     applicants = job.selected.all().order("-id")
+    #     print(repr(applicants))
+    #     serializer = SelectedSerializer(applicants, many=True)
+    #     return Response(serializer.data)
 
 
 class SelectionViewSet(viewsets.ModelViewSet):
@@ -211,7 +211,7 @@ class ApplicantsView(viewsets.ModelViewSet):
     def applicants(self, request, pk):
         job = self.get_object()
         # applicants = Applicants.objects.filter(job=job)
-        applicants = job.applicants.all()
+        applicants = job.applicants.all().order("-id")
         serializer = ApplicantSerializer(applicants, many=True)
         return Response(serializer.data)
 

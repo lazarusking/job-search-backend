@@ -142,46 +142,46 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
 
-    @action(
-        detail=True, url_path="apply/(?P<id>[^/.]+)", methods=["get", "put", "delete"]
-    )
-    def apply(self, request, *args, **kwargs):
-        # user: User = self.get_object()
-        # self.queryset = Applicants.objects.all().order_by("-id")
-        self.lookup_url_kwarg = "id"
-        self.queryset = Applicants.objects.all().order_by("-id")
-        self.serializer_class = ApplicantSerializer
-        # instance = request.user
-        print(repr(request.user))
-        print(self.kwargs.get("pk"), kwargs)
-        if not self.get_object:
-            print(repr(self.get_object()), "first instance")
-        # applicants = Applicants.objects.filter(job=job)
-        # applicants = job.applicants.all()
-        user = request.user
-        applied = user.applied.all()
-        print(applied)
+    # @action(
+    #     detail=True, url_path="apply/(?P<id>[^/.]+)", methods=["get", "put", "delete"]
+    # )
+    # def apply(self, request, *args, **kwargs):
+    #     # user: User = self.get_object()
+    #     # self.queryset = Applicants.objects.all().order_by("-id")
+    #     self.lookup_url_kwarg = "id"
+    #     self.queryset = Applicants.objects.all().order_by("-id")
+    #     self.serializer_class = ApplicantSerializer
+    #     # instance = request.user
+    #     print(repr(request.user))
+    #     print(self.kwargs.get("pk"), kwargs)
+    #     if not self.get_object:
+    #         print(repr(self.get_object()), "first instance")
+    #     # applicants = Applicants.objects.filter(job=job)
+    #     # applicants = job.applicants.all()
+    #     user = request.user
+    #     applied = user.applied.all()
+    #     print(applied)
 
-        if request.method == "PUT":
-            instance = self.get_object()
-            if self.get_object:
-                print(repr(self.get_object()), "instance ")
-                instance = self.get_object()
-            serializer = self.get_serializer(instance, data=request.data, many=False)
-            if serializer.is_valid():
-                serializer.save(job_id=kwargs["id"], applicant=self.request.user)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        if request.method == "DELETE":
-            serializer = self.get_serializer(data=request.data, many=False)
-            if serializer.is_valid():
-                serializer.save(job_id=kwargs["id"], applicant=self.request.user)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     if request.method == "PUT":
+    #         instance = self.get_object()
+    #         if self.get_object:
+    #             print(repr(self.get_object()), "instance ")
+    #             instance = self.get_object()
+    #         serializer = self.get_serializer(instance, data=request.data, many=False)
+    #         if serializer.is_valid():
+    #             serializer.save(job_id=kwargs["id"], applicant=self.request.user)
+    #             return Response(serializer.data, status=status.HTTP_201_CREATED)
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     if request.method == "DELETE":
+    #         serializer = self.get_serializer(data=request.data, many=False)
+    #         if serializer.is_valid():
+    #             serializer.save(job_id=kwargs["id"], applicant=self.request.user)
+    #             return Response(serializer.data, status=status.HTTP_201_CREATED)
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = ApplicantSerializer(applied, many=True)
+    #     serializer = ApplicantSerializer(applied, many=True)
 
-        return Response(serializer.data)
+    #     return Response(serializer.data)
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
