@@ -12,6 +12,8 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework import status
 from rest_framework_simplejwt.views import TokenObtainPairView
 from dj_rest_auth.registration.views import RegisterView
+
+from recruiters.models import Applicants, Job
 from .models import User, Profile
 from .serializers import (
     UserSerializer,
@@ -21,7 +23,11 @@ from .serializers import (
     MyTokenObtainPairSerializer,
 )
 from .permissions import IsOwnerOrReadOnly
-from recruiters.serializers import ApplicantSerializer, SelectedSerializer
+from recruiters.serializers import (
+    ApplicantSerializer,
+    JobSerializer,
+    SelectedSerializer,
+)
 
 
 class UserRegisterView(RegisterView):
@@ -67,7 +73,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         try:
-            instance:User = self.get_object()
+            instance: User = self.get_object()
             # print(repr(instance.profile), 'profile instance')
             instance = instance.profile
         except Profile.DoesNotExist:
@@ -106,13 +112,16 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
-    def applicants(self, request, *args, **kwargs):
+    def applied(self, request, *args, **kwargs):
         user = self.get_object()
         print(request.user)
-
-        # applicants = Applicants.objects.filter(job=job)
+        self.serializer_class = ApplicantSerializer
         applicants = user.applied.all()
-        serializer = ApplicantSerializer(applicants, many=True)
+        page = self.paginate_queryset(applicants)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
@@ -121,8 +130,76 @@ class UserViewSet(viewsets.ModelViewSet):
         print(request.user)
 
         # applicants = Applicants.objects.filter(job=job)
+        # applicants = job.selected_applications.all()
+        # serializer = SelectedSerializer(applicants, many=True)
+        # return Response(serializer.data)
+
+        self.serializer_class = SelectedSerializer
         applicants = job.selected_applications.all()
-        serializer = SelectedSerializer(applicants, many=True)
+        page = self.paginate_queryset(applicants)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(applicants, many=True)
+        return Response(serializer.data)
+
+        # @action(detail=True, methods=["get", "post"])
+        # def apply(self, request, *args, **kwargs):
+        user: User = self.get_object()
+        # self.queryset = Applicants.objects.all().order_by("-id")
+        self.serializer_class = ApplicantSerializer
+        self.queryset = Applicants.objects.all()
+        instance = self.get_object()
+        print(request.user)
+        print(self.kwargs.get("pk"))
+
+        # applicants = Applicants.objects.filter(job=job)
+        # applicants = job.applicants.all()
+        applied = user.applied.all()
+        print(applied)
+
+        if request.method == "POST":
+            serializer = self.get_serializer(instance, data=request.data, many=False)
+            if serializer.is_valid():
+                serializer.save(applicant=self.request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = ApplicantSerializer(applied, many=True)
+
+        return Response(serializer.data)
+
+
+class ApplicationViewSet(viewsets.ModelViewSet):
+    """Operations for users to apply"""
+
+    serializer_class = ApplicantSerializer
+    queryset = Applicants.objects.all()
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer: ApplicantSerializer):
+        serializer.save(applicant=self.request.user)
+        return super().perform_create(serializer)
+
+    # def update(self, request, *args, **kwargs):
+    #     instance = self.get_object()
+    #     serializer = ApplicantSerializer(instance, data=request.data, many=False)
+    #     print(request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     # return super().update(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        recruiter_pk = self.kwargs.get("username")
+        self.queryset = Job.objects.all()
+        instance = self.get_object()
+        # instance = request.user
+        print(instance, request.user)
+        # serializer = ApplicantSerializer(request.user, many=False)
+        serializer = JobSerializer(instance, many=False)
+        # print(serializer.data)
         return Response(serializer.data)
 
 
