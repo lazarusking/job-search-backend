@@ -75,13 +75,8 @@ class JobsViewSet(viewsets.ModelViewSet):
         job = self.get_object()
         print(request.user)
 
-        # applicants = Applicants.objects.filter(job=job)
-        # applicants = job.applicants.all()
-        # serializer = ApplicantSerializer(applicants, many=True)
-        # return Response(serializer.data)
-
         self.serializer_class = ApplicantSerializer
-        applicants = job.applicants.all()
+        applicants = job.applicants.all().order_by("-id")
         page = self.paginate_queryset(applicants)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -107,7 +102,9 @@ class JobsViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, url_path="select/(?P<id>[^/.]+)", methods=["get", "put"])
+    @action(
+        detail=True, url_path="select/(?P<id>[^/.]+)", methods=["get", "put", "delete"]
+    )
     def select(self, request, pk=None, *args, **kwargs):
         job = self.get_object()
         print(request.user)
@@ -118,7 +115,6 @@ class JobsViewSet(viewsets.ModelViewSet):
         print(repr(self.get_object()), repr(job))
         user = self.get_object()
 
-        # applicants = Applicants.objects.filter(job=job)
         if request.method == "PUT":
             serializer = SelectedSerializer(user, data=request.data, many=False)
             if serializer.is_valid():
@@ -141,49 +137,23 @@ class SelectionViewSet(viewsets.ModelViewSet):
     # lookup_url_kwarg = "user_id"
     permission_classes = [IsOwner, IsAuthenticated]
 
-    # def get_queryset(self):
-    #     queryset = super().get_queryset()
-    #     print(queryset)
-    #     user_id = self.kwargs.get("user_id")
-    #     pk = self.kwargs.get("pk")
-    #     user = self.request.user
-    #     if pk:
-    #         queryset = queryset.filter(id=pk)
-    #         print(queryset)
-    #     # print(user, recruiter_pk, queryset)
-    #     # if user_id:
-    #     #     queryset = queryset.filter(applicant__id=user_id)
-    #     #     print(queryset)
-    #     return queryset
+    def create(self, request, *args, **kwargs):
+        print(kwargs)
+        if Selected.objects.filter(job_id=kwargs["pk"]):
+            print(self.queryset)
+            return Response(
+                {"detail": "You have already selected this user"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer: SelectedSerializer):
         # self.queryset = Job.objects.all().order_by("-id")
-        print(repr(self.get_object()))
-        user = self.get_object()
-        print(self.kwargs)
-
-        print(serializer.validated_data)
-        print(repr(self.request.user), repr(user))
-        serializer.save(job_id=self.kwargs["pk"], applicant=user.applicant)
+        # print(repr(self.get_object()))
+        # user = self.get_object()
+        serializer.save(job_id=self.kwargs["pk"], applicant=self.request.user)
         return super().perform_create(serializer)
-
-        # def list(self, request, *args, **kwargs):
-        #     # print(repr(self.get_object()))
-        #     print(self.kwargs, kwargs)
-        #     # self.serializer_class=ApplicantSerializer
-        #     # self.queryset=self.queryset.applicants.all()
-        #     # self.serializer_class = SelectedSerializer
-        #     # # applicants = self.get_object().applied.all()
-        #     # applicants = self.queryset
-        #     # page = self.paginate_queryset(self.queryset)
-        #     # if page is not None:
-        #     #     serializer = self.get_serializer(page, many=True)
-        #     #     return self.get_paginated_response(serializer.data)
-        #     # serializer = self.get_serializer(applicants, many=True)
-        #     # return Response(serializer.data)
-        #     return super().list(request, *args, **kwargs)
-
-
 
 
 class RecruitersView(viewsets.ModelViewSet):

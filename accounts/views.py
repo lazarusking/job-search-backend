@@ -74,7 +74,6 @@ class UserViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         try:
             instance: User = self.get_object()
-            # print(repr(instance.profile), 'profile instance')
             instance = instance.profile
         except Profile.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -143,25 +142,40 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
 
-        # @action(detail=True, methods=["get", "post"])
-        # def apply(self, request, *args, **kwargs):
-        user: User = self.get_object()
+    @action(
+        detail=True, url_path="apply/(?P<id>[^/.]+)", methods=["get", "put", "delete"]
+    )
+    def apply(self, request, *args, **kwargs):
+        # user: User = self.get_object()
         # self.queryset = Applicants.objects.all().order_by("-id")
+        self.lookup_url_kwarg = "id"
+        self.queryset = Applicants.objects.all().order_by("-id")
         self.serializer_class = ApplicantSerializer
-        self.queryset = Applicants.objects.all()
-        instance = self.get_object()
-        print(request.user)
-        print(self.kwargs.get("pk"))
-
+        # instance = request.user
+        print(repr(request.user))
+        print(self.kwargs.get("pk"), kwargs)
+        if not self.get_object:
+            print(repr(self.get_object()), "first instance")
         # applicants = Applicants.objects.filter(job=job)
         # applicants = job.applicants.all()
+        user = request.user
         applied = user.applied.all()
         print(applied)
 
-        if request.method == "POST":
+        if request.method == "PUT":
+            instance = self.get_object()
+            if self.get_object:
+                print(repr(self.get_object()), "instance ")
+                instance = self.get_object()
             serializer = self.get_serializer(instance, data=request.data, many=False)
             if serializer.is_valid():
-                serializer.save(applicant=self.request.user)
+                serializer.save(job_id=kwargs["id"], applicant=self.request.user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if request.method == "DELETE":
+            serializer = self.get_serializer(data=request.data, many=False)
+            if serializer.is_valid():
+                serializer.save(job_id=kwargs["id"], applicant=self.request.user)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -174,12 +188,45 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     """Operations for users to apply"""
 
     serializer_class = ApplicantSerializer
-    queryset = Applicants.objects.all()
+    queryset = Applicants.objects.all().order_by("-id")
     permission_classes = [IsAuthenticatedOrReadOnly]
 
+    # lookup_field = "pk"
+    # def get_queryset(self):
+    #     queryset = super().get_queryset()
+    #     job_id = self.kwargs.get("pk")
+    #     user = self.request.user
+    #     print(user, self.kwargs, job_id, queryset)
+    #     if job_id:
+    #         queryset = queryset.filter(job=job_id)
+    #     print(queryset)
+    #     return queryset
+    def create(self, request, *args, **kwargs):
+        if Applicants.objects.filter(job_id=kwargs["pk"]):
+            print(self.queryset)
+            return Response(
+                {"detail": "You have already applied"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def get_object(self):
+        return super().get_object()
+
     def perform_create(self, serializer: ApplicantSerializer):
-        serializer.save(applicant=self.request.user)
+        # print(repr(self.get_object()))
+        # self.queryset = Applicants.objects.all()
+        # print(self.kwargs)
+        serializer.save(job_id=self.kwargs["pk"], applicant=self.request.user)
         return super().perform_create(serializer)
+
+    # def perform_update(self, serializer: ApplicantSerializer):
+    #     print(repr(self.get_object()))
+    #     # self.queryset = Applicants.objects.all()
+    #     # print(self.kwargs)
+    #     serializer.save(job_id=self.kwargs["pk"], applicant=self.request.user)
+    #     return super().perform_update(serializer)
 
     # def update(self, request, *args, **kwargs):
     #     instance = self.get_object()
@@ -191,16 +238,18 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     #     # return super().update(request, *args, **kwargs)
 
-    def retrieve(self, request, *args, **kwargs):
-        recruiter_pk = self.kwargs.get("username")
-        self.queryset = Job.objects.all()
-        instance = self.get_object()
-        # instance = request.user
-        print(instance, request.user)
-        # serializer = ApplicantSerializer(request.user, many=False)
-        serializer = JobSerializer(instance, many=False)
-        # print(serializer.data)
-        return Response(serializer.data)
+    # def retrieve(self, request, *args, **kwargs):
+    #     recruiter_pk = self.kwargs.get("username")
+    #     # self.queryset = Job.objects.all()
+    #     instance = self.get_object()
+    #     instance = Job.objects.get(id=kwargs["pk"])
+    #     print(kwargs)
+    #     # instance = request.user
+    #     print(instance, request.user)
+    #     # serializer = ApplicantSerializer(instance, many=False)
+    #     serializer = JobSerializer(instance, many=False)
+    #     # print(serializer.data)
+    #     return Response(serializer.data)
 
 
 @api_view(["GET", "PUT", "DELETE", "PATCH"])
