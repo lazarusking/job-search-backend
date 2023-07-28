@@ -30,6 +30,7 @@ class IsOwner(permissions.BasePermission):
     #     print(repr(obj),obj == request.user)
     #     return obj.user == request.user
 
+
 class IsJobOwner(permissions.BasePermission):
     """
     Custom permission to only allow owners of an object to edit it.
@@ -43,3 +44,15 @@ class IsJobOwner(permissions.BasePermission):
     #     print(obj,request.user)
     #     # Write permissions are only allowed to the owner of the object.
     #     return obj.recruiter == request.user
+
+
+class IsNotRecruiter(permissions.BasePermission):
+    """
+    Custom permission to prevent a recruiter from applying to a job.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        print(obj,request.user)
+        
+        return obj.is_recruiter
+        return super().has_object_permission(request, view, obj)

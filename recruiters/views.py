@@ -1,14 +1,18 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, filters
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import (
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+    AllowAny,
+)
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework import status
 from django.core.paginator import Paginator
 from django.utils.decorators import method_decorator
 from django.shortcuts import get_object_or_404
 from .models import Job, Applicants, Selected
-from .permissions import IsOwner, IsJobOwner, IsOwnerOrReadOnly
+from .permissions import IsNotRecruiter, IsOwner, IsJobOwner, IsOwnerOrReadOnly
 from .serializers import JobSerializer, ApplicantSerializer, SelectedSerializer
 from .decorators import recruiter_required, normal_user_required
 from accounts.models import Recruiter, User
@@ -28,12 +32,13 @@ class JobsViewSet(viewsets.ModelViewSet):
 
     serializer_class = JobSerializer
     queryset = Job.objects.all().order_by("-id")
-
     permission_classes = [IsJobOwner, IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["title", "location", "recruiter__username"]
 
     def get_permissions(self):
-        if self.action == "list":
-            permission_classes = [IsAuthenticated]
+        if self.action == "list" or "detail":
+            permission_classes = [IsAuthenticated, AllowAny]
             return [permission() for permission in permission_classes]
         return super().get_permissions()
 
@@ -56,11 +61,9 @@ class JobsViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def details(self, request, *args, **kwargs):
         queryset = super().get_queryset()
-        print(repr(queryset))
         final_list = []
         for i in queryset:
             extra = i.job_extra_details()
-            print(extra)
             final_list.append(extra)
         paginator = Paginator(final_list, 20)
         page_number = request.GET.get("page")
@@ -68,7 +71,7 @@ class JobsViewSet(viewsets.ModelViewSet):
         context = {
             "jobs": final_list,
         }
-        return Response(context)
+        return Response(final_list)
 
     @action(detail=True, methods=["get"])
     def applicants(self, request, *args, **kwargs):
@@ -94,7 +97,7 @@ class JobsViewSet(viewsets.ModelViewSet):
         # return Response(serializer.data)
 
         self.serializer_class = SelectedSerializer
-        applicants = job.selected.all().order("-id")
+        applicants = job.selected.all().order_by("-id")
         page = self.paginate_queryset(applicants)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -110,7 +113,7 @@ class JobsViewSet(viewsets.ModelViewSet):
     #     print(request.user)
     #     print(self.kwargs, kwargs)
     #     self.lookup_url_kwarg = "pk"
-    #     self.queryset = Selected.objects.all().order("-id")
+    #     self.queryset = Selected.objects.all().order_by("-id")
     #     self.serializer_class = SelectedSerializer
     #     print(repr(self.get_object()), repr(job))
     #     user = self.get_object()
@@ -133,14 +136,28 @@ class SelectionViewSet(viewsets.ModelViewSet):
 
     serializer_class = SelectedSerializer
     queryset = Selected.objects.all().order_by("-id")
-    # lookup_field = "pk"
-    # lookup_url_kwarg = "user_id"
+    lookup_field = "applicant_id"
+    lookup_url_kwarg = "user_id"
     permission_classes = [IsOwner, IsAuthenticated]
+
+    # def get_permissions(self):
+    #     if self.action == "create":
+    #         permission_classes = [IsNotRecruiter]
+    #         return [permission() for permission in permission_classes]
+
+    #     return super().get_permissions()
+
+    def destroy(self, request, *args, **kwargs):
+        print(kwargs)
+        print(self.action)
+        print(self.queryset)
+        print(self.queryset)
+        return super().destroy(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         print(kwargs)
-        if Selected.objects.filter(job_id=kwargs["pk"]):
-            print(self.queryset)
+        get_object_or_404(User,id=kwargs["user_id"])
+        if Selected.objects.filter(job_id=kwargs["pk"], applicant_id=kwargs["user_id"]):
             return Response(
                 {"detail": "You have already selected this user"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -150,9 +167,8 @@ class SelectionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer: SelectedSerializer):
         # self.queryset = Job.objects.all().order_by("-id")
-        # print(repr(self.get_object()))
         # user = self.get_object()
-        serializer.save(job_id=self.kwargs["pk"], applicant=self.request.user)
+        serializer.save(job_id=self.kwargs["pk"], applicant_id=self.kwargs["user_id"])
         return super().perform_create(serializer)
 
 
@@ -190,42 +206,6 @@ class RecruitersView(viewsets.ModelViewSet):
         instance = request.user
         print(instance.recruiterprofile, request.user)
         serializer = RecruiterProfileSerializer(instance.recruiterprofile, many=False)
-        # print(serializer.data)
-        return Response(serializer.data)
-
-
-class ApplicantsView(viewsets.ModelViewSet):
-    """Get applicants managed by a particular recruiter"""
-
-    serializer_class = JobSerializer
-    queryset = Job.objects.all().order_by("-id")
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        super().get_queryset()
-        user = self.request.user
-        print(user)
-        return Applicants.objects.filter(job=user)
-
-    @action(detail=True, methods=["get"])
-    def applicants(self, request, pk):
-        job = self.get_object()
-        # applicants = Applicants.objects.filter(job=job)
-        applicants = job.applicants.all().order("-id")
-        serializer = ApplicantSerializer(applicants, many=True)
-        return Response(serializer.data)
-
-
-class ApplicantsAPIView(APIView):
-    def get(self, request, id):
-        try:
-            job = Job.objects.get(pk=id)
-            print(job)
-            # applicants = Applicants.objects.filter(job=job)
-            applicants = job.applicants.all()
-        except Job.DoesNotExist:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        serializer = ApplicantSerializer(applicants, many=True)
         # print(serializer.data)
         return Response(serializer.data)
 

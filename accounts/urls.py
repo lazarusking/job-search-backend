@@ -23,8 +23,13 @@ urlpatterns = [
     path("<int:pk>/update/", views.user_profile, name="index"),
     path(
         "apply/<int:pk>/",
-        views.ApplicationViewSet.as_view({"get": "list", "put": "create"}),
+        views.ApplicationViewSet.as_view(
+            {"get": "list", "put": "create", "delete": "destroy"}
+        ),
     ),
+    path("applied/", views.AppliedList.as_view()),
+    path("selected/", views.SelectedList.as_view()),
+    path("saved/", views.SelectedList.as_view()),
     path("", include(router.urls)),
     # path('<int:pk>/', views.get_profile),
     # path('<int:pk>/profile', views.user_profile, name='profile-detail'),

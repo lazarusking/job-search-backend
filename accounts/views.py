@@ -2,8 +2,9 @@
 # permission_classes= (permissions.IsAuthenticated)
 import json
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django_countries import countries, Countries
-from rest_framework import viewsets
+from rest_framework import viewsets, generics
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.views import APIView
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -22,10 +23,11 @@ from .serializers import (
     ProfileSerializer,
     MyTokenObtainPairSerializer,
 )
-from .permissions import IsOwnerOrReadOnly
+from .permissions import IsOwner, IsOwnerOrReadOnly
 from recruiters.serializers import (
     ApplicantSerializer,
     JobSerializer,
+    SavedJobSerializer,
     SelectedSerializer,
 )
 
@@ -115,7 +117,7 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         print(request.user)
         self.serializer_class = ApplicantSerializer
-        applicants = user.applied.all()
+        applicants = user.applied.all().order_by("-id")
         page = self.paginate_queryset(applicants)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -134,7 +136,7 @@ class UserViewSet(viewsets.ModelViewSet):
         # return Response(serializer.data)
 
         self.serializer_class = SelectedSerializer
-        applicants = job.selected_applications.all()
+        applicants = job.selected_applications.all().order_by("-id")
         page = self.paginate_queryset(applicants)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -189,18 +191,40 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
     serializer_class = ApplicantSerializer
     queryset = Applicants.objects.all().order_by("-id")
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwner]
 
-    # lookup_field = "pk"
-    # def get_queryset(self):
-    #     queryset = super().get_queryset()
-    #     job_id = self.kwargs.get("pk")
-    #     user = self.request.user
-    #     print(user, self.kwargs, job_id, queryset)
-    #     if job_id:
-    #         queryset = queryset.filter(job=job_id)
-    #     print(queryset)
-    #     return queryset
+    lookup_field = "job"
+    lookup_url_kwarg = "job_id"
+    # lookup_url_kwarg = "job"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        job_id = self.kwargs.get("pk")
+        user = self.request.user
+        print(user, self.kwargs, job_id, queryset)
+        if job_id:
+            queryset = queryset.filter(job=job_id, applicant=user)
+        print(queryset)
+        return queryset
+
+    def get_object(self):
+        # return self.request.user
+        return super().get_object()
+
+    def destroy(self, request, *args, **kwargs):
+        print(kwargs)
+        print(self.action)
+        print(self.queryset)
+        print(self.lookup_field, self.lookup_url_kwarg)
+        user = get_object_or_404(self.queryset, applicant=request.user.id)
+        print(user)
+        user.delete()
+        return Response(
+            {"detail": "Removed Successfully"},
+            status=status.HTTP_200_OK,
+        )
+        # super().destroy(request, *args, **kwargs)
+
     def create(self, request, *args, **kwargs):
         if Applicants.objects.filter(job_id=kwargs["pk"]):
             print(self.queryset)
@@ -250,6 +274,40 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     #     serializer = JobSerializer(instance, many=False)
     #     # print(serializer.data)
     #     return Response(serializer.data)
+
+
+class AppliedList(generics.ListAPIView):
+    """List operations for a user's applied jobs"""
+
+    serializer_class = ApplicantSerializer
+    permission_classes = [IsOwner, IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # return Applicants.objects.filter(applicant=user).order_by("-id")
+        return user.applied.all().order_by("-id")
+
+
+class SelectedList(generics.ListAPIView):
+    """List operations for jobs user got selected"""
+
+    serializer_class = SelectedSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        # return Applicants.objects.filter(applicant=user).order_by("-id")
+        return user.selected_applications.all().order_by("-id")
+
+
+class SavedJobList(generics.ListAPIView):
+    """List operations for jobs user got saved"""
+
+    serializer_class = SavedJobSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        # return Applicants.objects.filter(applicant=user).order_by("-id")
+        return user.saved.all().order_by("-id")
 
 
 @api_view(["GET", "PUT", "DELETE", "PATCH"])

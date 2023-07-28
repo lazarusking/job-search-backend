@@ -102,6 +102,7 @@ class Profile(models.Model):
     country = CountryField(blank_label="(select country)", blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     gender = models.CharField(max_length=255, blank=True, null=True, choices=GENDER)
+    # skills = models.CharField(max_length=255, blank=True)
 
     address = models.CharField(max_length=50, blank=True)
     date_of_birth = models.DateField(
