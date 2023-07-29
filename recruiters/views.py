@@ -38,7 +38,7 @@ class JobsViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "list" or "detail":
-            permission_classes = [IsAuthenticated, AllowAny]
+            permission_classes = [AllowAny]
             return [permission() for permission in permission_classes]
         return super().get_permissions()
 

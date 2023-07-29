@@ -36,6 +36,7 @@ urlpatterns = [
     ),
     path("applied/", views.AppliedList.as_view()),
     path("selected/", views.SelectedList.as_view()),
+    path("check_username/", views.check_username),
     # path("saved/", views.SavedJobList.as_view()),
     path("", include(router.urls)),
 ]

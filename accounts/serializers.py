@@ -28,65 +28,8 @@ class UserRegisterSerializer(RegisterSerializer):
     )
     password1 = serializers.CharField(min_length=8, write_only=True, required=True)
     password2 = serializers.CharField(min_length=8, write_only=True, required=True)
-
-    class Meta:
-        model = User
-        fields = (
-            "username",
-            "first_name",
-            "last_name",
-            "email",
-            "password1",
-            "password2",
-        )
-        extra_kwargs = {"password": {"write_only": True}}
-
-    def validate_username(self, value):
-        # value = value.lower()
-        # print(User.objects.get(username__iexact=value).exists())
-        if User.objects.filter(username__iexact=value).exists():
-            print(User.objects.filter(username__iexact=value).exists())
-
-            raise serializers.ValidationError(
-                "A user with this username already exists"
-            )
-        return value
-
-    def validate(self, attrs):
-        if attrs["password1"] != attrs["password2"]:
-            raise serializers.ValidationError(
-                {"password": "Password fields didn't match"}
-            )
-        return attrs
-
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            validated_data["username"],
-            validated_data["email"],
-            validated_data["password"],
-        )
-        user.set_password(validated_data["password"])
-        return user
-
-
-class RecruiterRegisterSerializer(RegisterSerializer):
-    email = serializers.EmailField(
-        required=True,
-        max_length=32,
-        validators=[
-            UniqueValidator(
-                queryset=User.objects.all(),
-                message="A user with this email already exists",
-                lookup="iexact",
-            )
-        ],
-    )
-    username = serializers.CharField(
-        # validators=[UniqueValidator(
-        #     queryset=User.objects.all(), message='A user with this username already exists', lookup='iexact')]
-    )
-    password1 = serializers.CharField(min_length=8, write_only=True, required=True)
-    password2 = serializers.CharField(min_length=8, write_only=True, required=True)
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
 
     class Meta:
         model = User
@@ -120,7 +63,81 @@ class RecruiterRegisterSerializer(RegisterSerializer):
 
     def get_cleaned_data(self):
         data = super().get_cleaned_data()
+        # print(data, self.validated_data)
+        data["first_name"] = self.validated_data["first_name"]
+        data["last_name"] = self.validated_data["last_name"]
+        return data
+
+    def create(self, validated_data):
+        print(validated_data)
+        user = User.objects.create_user(
+            validated_data["username"],
+            validated_data["email"],
+            validated_data["password"],
+            validated_data["first_name"],
+            validated_data["last_name"],
+        )
+        user.set_password(validated_data["password"])
+        return user
+
+
+class RecruiterRegisterSerializer(RegisterSerializer):
+    email = serializers.EmailField(
+        required=True,
+        max_length=32,
+        validators=[
+            UniqueValidator(
+                queryset=User.objects.all(),
+                message="A user with this email already exists",
+                lookup="iexact",
+            )
+        ],
+    )
+    username = serializers.CharField(
+        # validators=[UniqueValidator(
+        #     queryset=User.objects.all(), message='A user with this username already exists', lookup='iexact')]
+    )
+    password1 = serializers.CharField(min_length=8, write_only=True, required=True)
+    password2 = serializers.CharField(min_length=8, write_only=True, required=True)
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+
+    class Meta:
+        model = User
+        fields = (
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "password1",
+            "password2",
+        )
+        extra_kwargs = {"password": {"write_only": True}}
+
+    def validate_username(self, value):
+        # value = value.lower()
+        # print(User.objects.get(username__iexact=value).exists())
+        if User.objects.filter(username__iexact=value).exists():
+            print(User.objects.filter(username__iexact=value).exists())
+
+            raise serializers.ValidationError(
+                "A user with this username already exists"
+            )
+        return value
+
+    def validate(self, attrs):
+        if attrs["password1"] != attrs["password2"]:
+            raise serializers.ValidationError(
+                {"password": "Password fields didn't match"}
+            )
+        return attrs
+
+    def get_cleaned_data(self):
+        data = super().get_cleaned_data()
+        print(data, self.validated_data)
         data["is_recruiter"] = True
+        data["first_name"] = self.validated_data["first_name"]
+        data["last_name"] = self.validated_data["last_name"]
         return data
 
     # def create(self, validated_data):
@@ -160,10 +177,11 @@ class RecruiterSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(CountryFieldMixin, serializers.HyperlinkedModelSerializer):
-    user = UserSerializer(many=False,read_only=True)
+    user = UserSerializer(many=False, read_only=True)
     url = serializers.HyperlinkedRelatedField(
         view_name="profile-detail", read_only=True, lookup_field="slug"
     )
+
     # avatar = serializers.ImageField()
     # resume = serializers.FileField()
     class Meta:
@@ -177,7 +195,7 @@ class ProfileSerializer(CountryFieldMixin, serializers.HyperlinkedModelSerialize
     #     print(instance.user)
     #     return super().update(instance, validated_data)
 
-        # fields = ('user', 'first_name', 'last_name', 'email')
+    # fields = ('user', 'first_name', 'last_name', 'email')
 
 
 class RecruiterProfileSerializer(CountryFieldMixin, serializers.ModelSerializer):

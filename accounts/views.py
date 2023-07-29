@@ -9,7 +9,11 @@ from django_countries import Countries, countries
 from rest_framework import generics, status, viewsets, permissions
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import (
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+    AllowAny,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -412,32 +416,15 @@ class MyTokenObtainPairView(TokenObtainPairView):
 
 
 @api_view(["GET", "POST"])
-@permission_classes([IsAuthenticated])
-def get_profile(request, pk):
-    try:
-        user = request.user
-    except User.DoesNotExist or Profile.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    if request.method == "GET":
-        # user = request.user
-        profile = user.profile
-        print(user)
-        serializer = ProfileSerializer(profile, many=False)
-        print(serializer.data)
-        return Response(serializer.data)
-
-    if request.method == "POST":
-        print(user)
-        print(user.profile)
-        # serializer = ProfileSerializer(user, data=request.data)
-        serializer = ProfileSerializer(user.profile, data=request.data)
-        print(serializer.initial_data)
-        # print(serializer1.initial_data)
-        if serializer.is_valid():
-            # serializer.update(user.profile,request.data)
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+@permission_classes([AllowAny])
+def check_username(request):
+    username = request.POST.get("username")
+    print(request.GET, request)
+    print(username)
+    if User.objects.filter(username__iexact=username).exists():
+        data = {"valid": False, "message": "Username already taken"}
+        return Response(data)
+    return Response(data={"valid": True, "message": "Username valid"})
 
 
 @api_view(["OPTIONS", "GET"])
