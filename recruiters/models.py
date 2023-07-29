@@ -94,10 +94,16 @@ class Selected(models.Model):
     def __str__(self):
         return self.applicant.username
 
+
 class SavedJobs(models.Model):
     job = models.ForeignKey(Job, related_name="saved_job", on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name="saved", on_delete=models.CASCADE)
     date_posted = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "job"], name="unique_saved_jobs")
+        ]
 
     def __str__(self):
         return self.job.title
