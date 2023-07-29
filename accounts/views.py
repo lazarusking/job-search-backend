@@ -1,34 +1,36 @@
 # Create your views here.
 # permission_classes= (permissions.IsAuthenticated)
 import json
+
+from dj_rest_auth.registration.views import RegisterView
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django_countries import countries, Countries
-from rest_framework import viewsets, generics
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
-from rest_framework.views import APIView
+from django_countries import Countries, countries
+from rest_framework import generics, status, viewsets, permissions
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
-from dj_rest_auth.registration.views import RegisterView
 
-from recruiters.models import Applicants, Job
-from .models import User, Profile
-from .serializers import (
-    UserSerializer,
-    UserRegisterSerializer,
-    RecruiterRegisterSerializer,
-    ProfileSerializer,
-    MyTokenObtainPairSerializer,
-)
-from .permissions import IsOwner, IsOwnerOrReadOnly
+from recruiters.models import Applicants, Job, SavedJobs
+from recruiters.permissions import IsNotRecruiter, IsRecruiter, IsRecruiterOrReadOnly
 from recruiters.serializers import (
     ApplicantSerializer,
     JobSerializer,
     SavedJobSerializer,
     SelectedSerializer,
+)
+
+from .models import Profile, User
+from .permissions import IsOwner, IsOwnerOrReadOnly
+from .serializers import (
+    MyTokenObtainPairSerializer,
+    ProfileSerializer,
+    RecruiterRegisterSerializer,
+    UserRegisterSerializer,
+    UserSerializer,
 )
 
 
@@ -130,11 +132,6 @@ class UserViewSet(viewsets.ModelViewSet):
         job = self.get_object()
         print(request.user)
 
-        # applicants = Applicants.objects.filter(job=job)
-        # applicants = job.selected_applications.all()
-        # serializer = SelectedSerializer(applicants, many=True)
-        # return Response(serializer.data)
-
         self.serializer_class = SelectedSerializer
         applicants = job.selected_applications.all().order_by("-id")
         page = self.paginate_queryset(applicants)
@@ -191,7 +188,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
     serializer_class = ApplicantSerializer
     queryset = Applicants.objects.all().order_by("-id")
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwner]
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwner, IsNotRecruiter]
 
     lookup_field = "job"
     lookup_url_kwarg = "job_id"
@@ -223,7 +220,6 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             {"detail": "Removed Successfully"},
             status=status.HTTP_200_OK,
         )
-        # super().destroy(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         if Applicants.objects.filter(job_id=kwargs["pk"]):
@@ -235,13 +231,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
 
         return super().create(request, *args, **kwargs)
 
-    def get_object(self):
-        return super().get_object()
-
     def perform_create(self, serializer: ApplicantSerializer):
-        # print(repr(self.get_object()))
-        # self.queryset = Applicants.objects.all()
-        # print(self.kwargs)
         serializer.save(job_id=self.kwargs["pk"], applicant=self.request.user)
         return super().perform_create(serializer)
 
@@ -280,7 +270,7 @@ class AppliedList(generics.ListAPIView):
     """List operations for a user's applied jobs"""
 
     serializer_class = ApplicantSerializer
-    permission_classes = [IsOwner, IsAuthenticated]
+    permission_classes = [IsOwner, IsAuthenticated, IsNotRecruiter]
 
     def get_queryset(self):
         user = self.request.user
@@ -292,6 +282,7 @@ class SelectedList(generics.ListAPIView):
     """List operations for jobs user got selected"""
 
     serializer_class = SelectedSerializer
+    permission_classes = [IsNotRecruiter, IsOwner]
 
     def get_queryset(self):
         user = self.request.user
@@ -299,15 +290,95 @@ class SelectedList(generics.ListAPIView):
         return user.selected_applications.all().order_by("-id")
 
 
-class SavedJobList(generics.ListAPIView):
-    """List operations for jobs user got saved"""
+class SavedJobList(viewsets.ModelViewSet):
+    """Operations for jobs user saved"""
 
-    serializer_class = SavedJobSerializer
+    serializer_class = JobSerializer
+    queryset = Job.objects.all().order_by("-id")
+    # permission_classes = [IsAuthenticated, IsRecruiterOrReadOnly]
+    # lookup_field="job"
+    # lookup_url_kwarg = "id"
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=["post"])
+    def add_job(self, request, pk=None, *args, **kwargs):
+        print(repr(self.get_object()), ".......")
+
+    def perform_update(self, serializer: ApplicantSerializer):
+        job = self.get_object()
+        print(repr(self.get_object()))
+        self.serializer_class = SavedJobSerializer
+        self.queryset = SavedJobs.objects.all()
+        print(self.serializer_class, ".....")
+        print(repr(serializer.instance))
+        serializer.instance.saved.add(job)
+        serializer.save(job=job, user=self.request.user)
+        return super().perform_update(serializer)
+
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            print(self.request.method)
+            permission_classes = [IsAuthenticated]
+            return [permission() for permission in permission_classes]
+        return super().get_permissions()
+
+    def get_serializer_class(self):
+        if self.request.method not in permissions.SAFE_METHODS:
+            print(self.request.method)
+            return SavedJobSerializer
+        return JobSerializer
 
     def get_queryset(self):
+        queryset = super().get_queryset()
         user = self.request.user
-        # return Applicants.objects.filter(applicant=user).order_by("-id")
-        return user.saved.all().order_by("-id")
+        print(self.lookup_field, self.kwargs)
+        print(self.queryset)
+        job_id = self.kwargs.get("id")
+        if job_id:
+            queryset = queryset.filter(id=job_id)
+        return queryset
+        # return super().get_queryset()
+
+
+class SavedJobViewSet(viewsets.ModelViewSet):
+    """Operations for users to save jobs"""
+
+    serializer_class = SavedJobSerializer
+    queryset = SavedJobs.objects.all().order_by("-id")
+    permission_classes = [IsAuthenticated, IsOwner, IsNotRecruiter]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        job_id = self.kwargs.get("pk")
+        user = self.request.user
+        if job_id:
+            queryset = queryset.filter(job=job_id, user=user)
+        print(queryset)
+        return queryset
+
+    def destroy(self, request, *args, **kwargs):
+        print(self.queryset)
+        saved = get_object_or_404(self.queryset, user=request.user.id)
+        print(saved)
+        saved.delete()
+        return Response(
+            {"detail": "Removed Successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+    def create(self, request, *args, **kwargs):
+        if SavedJobs.objects.filter(job_id=kwargs["pk"]):
+            print(self.queryset)
+            return Response(
+                {"detail": "You have already saved this"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer: ApplicantSerializer):
+        serializer.save(job_id=self.kwargs["pk"], user=self.request.user)
+        return super().perform_create(serializer)
 
 
 @api_view(["GET", "PUT", "DELETE", "PATCH"])

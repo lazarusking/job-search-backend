@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from accounts.serializers import UserSerializer
 
-from .models import Applicants, Job, Selected
+from .models import Applicants, Job, SavedJobs, Selected
 
 User = get_user_model()
 
@@ -47,7 +47,7 @@ class SavedJobSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
 
     class Meta:
-        model = Selected
+        model = SavedJobs
         fields = "__all__"
 
 

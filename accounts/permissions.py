@@ -26,3 +26,4 @@ class IsOwner(permissions.BasePermission):
         # Write permissions are only allowed to the owner of the snippet.
         print(repr(obj), "user object")
         return obj.user == request.user
+    

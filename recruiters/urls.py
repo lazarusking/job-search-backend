@@ -26,7 +26,7 @@ urlpatterns = [
     path(
         "jobs/<int:pk>/select/<int:user_id>/",
         views.SelectionViewSet.as_view(
-            {"get": "list", "put": "create", "delete": "destroy"}
+            {"get": "list", "post": "create", "delete": "destroy"}
         ),
     ),
     path("", include(router.urls)),

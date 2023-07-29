@@ -1,7 +1,7 @@
 from rest_framework import permissions
 
 
-class IsOwnerOrReadOnly(permissions.BasePermission):
+class IsRecruiterOrReadOnly(permissions.BasePermission):
     """
     Custom permission to only allow owners of an object to edit it.
     """
@@ -11,8 +11,9 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         # so we'll always allow GET, HEAD or OPTIONS requests.
         if request.method in permissions.SAFE_METHODS:
             return True
-
+        print(repr(obj), "user object")
         # Write permissions are only allowed to the owner of the object.
+        print(obj.recruiter == request.user)
         return obj.recruiter == request.user
 
 
@@ -37,7 +38,6 @@ class IsJobOwner(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        print(view)
         return request.user and request.user.is_recruiter
 
     # def has_object_permission(self, request, view, obj):
@@ -52,7 +52,24 @@ class IsNotRecruiter(permissions.BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
-        print(obj,request.user)
-        
-        return obj.is_recruiter
+        print(obj, request.user)
+
+        return not request.user.is_recruiter
         return super().has_object_permission(request, view, obj)
+
+    def has_permission(self, request, view):
+        return not request.user.is_recruiter
+
+
+class IsRecruiter(permissions.BasePermission):
+    """
+    Custom permission to prevent a user from editing recruiter objects.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        print(obj, request.user)
+
+        return request.user.is_recruiter
+
+    def has_permission(self, request, view):
+        return request.user.is_recruiter

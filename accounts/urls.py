@@ -15,6 +15,7 @@ user_router = create_router("", views.UserViewSet)
 router = routers.DefaultRouter()
 
 # router.register(r"apply", views.ApplicationViewSet, basename="apply")
+# router.register(r"saved", views.SavedJobList)
 router.register(r"", views.UserViewSet)
 
 urlpatterns = [
@@ -24,15 +25,17 @@ urlpatterns = [
     path(
         "apply/<int:pk>/",
         views.ApplicationViewSet.as_view(
-            {"get": "list", "put": "create", "delete": "destroy"}
+            {"get": "list", "post": "create", "delete": "destroy"}
+        ),
+    ),
+    path(
+        "saved/<int:pk>/",
+        views.SavedJobViewSet.as_view(
+            {"get": "list", "post": "create", "delete": "destroy"}
         ),
     ),
     path("applied/", views.AppliedList.as_view()),
     path("selected/", views.SelectedList.as_view()),
-    path("saved/", views.SelectedList.as_view()),
+    # path("saved/", views.SavedJobList.as_view()),
     path("", include(router.urls)),
-    # path('<int:pk>/', views.get_profile),
-    # path('<int:pk>/profile', views.user_profile, name='profile-detail'),
-    # path('token/', views.MyTokenObtainPaisrView.as_view(), name='token_obtain_pair'),
-    # path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]

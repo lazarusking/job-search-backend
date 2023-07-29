@@ -12,7 +12,7 @@ from django.core.paginator import Paginator
 from django.utils.decorators import method_decorator
 from django.shortcuts import get_object_or_404
 from .models import Job, Applicants, Selected
-from .permissions import IsNotRecruiter, IsOwner, IsJobOwner, IsOwnerOrReadOnly
+from .permissions import IsNotRecruiter, IsOwner, IsJobOwner
 from .serializers import JobSerializer, ApplicantSerializer, SelectedSerializer
 from .decorators import recruiter_required, normal_user_required
 from accounts.models import Recruiter, User
