@@ -165,9 +165,17 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = User
-        fields = ("url", "id", "username", "first_name", "last_name", "email")
+        fields = (
+            "url",
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "is_recruiter",
+        )
         extra_kwargs = {"url": {"lookup_field": "id"}}
-        read_only_fields = ["email"]
+        read_only_fields = ["email", "is_recruiter"]
 
 
 class RecruiterSerializer(serializers.ModelSerializer):
@@ -229,4 +237,5 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token["username"] = user.username
         token["email"] = user.email
+        token["is_recruiter"] = user.is_recruiter
         return token

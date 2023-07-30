@@ -294,6 +294,18 @@ class SelectedList(generics.ListAPIView):
         return user.selected_applications.all().order_by("-id")
 
 
+class SavedList(generics.ListAPIView):
+    """List operations for jobs user got saved"""
+
+    serializer_class = SelectedSerializer
+    permission_classes = [IsNotRecruiter, IsOwner]
+
+    def get_queryset(self):
+        user = self.request.user
+        # return Applicants.objects.filter(applicant=user).order_by("-id")
+        return user.saved.all().order_by("-id")
+
+
 class SavedJobList(viewsets.ModelViewSet):
     """Operations for jobs user saved"""
 
@@ -315,9 +327,9 @@ class SavedJobList(viewsets.ModelViewSet):
         self.queryset = SavedJobs.objects.all()
         print(self.serializer_class, ".....")
         print(repr(serializer.instance))
-        serializer.instance.saved.add(job)
-        serializer.save(job=job, user=self.request.user)
-        return super().perform_update(serializer)
+        self.request.user.saved.add(job)
+        # serializer.save(job=job, user=self.request.user)
+        # return super().perform_update(serializer)
 
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS:
@@ -344,25 +356,31 @@ class SavedJobList(viewsets.ModelViewSet):
         # return super().get_queryset()
 
 
+# valid
 class SavedJobViewSet(viewsets.ModelViewSet):
     """Operations for users to save jobs"""
 
     serializer_class = SavedJobSerializer
     queryset = SavedJobs.objects.all().order_by("-id")
     permission_classes = [IsAuthenticated, IsOwner, IsNotRecruiter]
+    # lookup_field = "pk"
 
     def get_queryset(self):
         queryset = super().get_queryset()
         job_id = self.kwargs.get("pk")
+        print(queryset)
+        print(self.request.data)
+        print(job_id)
+        print(self.lookup_field )
         user = self.request.user
         if job_id:
-            queryset = queryset.filter(job=job_id, user=user)
+            queryset = queryset.filter(user=user)
         print(queryset)
         return queryset
 
     def destroy(self, request, *args, **kwargs):
         print(self.queryset)
-        saved = get_object_or_404(self.queryset, user=request.user.id)
+        saved = get_object_or_404(self.queryset, user=request.user.id,job=kwargs['pk'])
         print(saved)
         saved.delete()
         return Response(
@@ -371,8 +389,11 @@ class SavedJobViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        if SavedJobs.objects.filter(job_id=kwargs["pk"]):
-            print(self.queryset)
+        print(request.user,"update func")
+        print(SavedJobs.objects.filter(job_id=kwargs["pk"],user=request.user))
+        job=get_object_or_404(Job,id=kwargs["pk"])
+        if SavedJobs.objects.filter(job=job,user=request.user):
+            print(self.queryset,"queryset exists")
             return Response(
                 {"detail": "You have already saved this"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -381,6 +402,8 @@ class SavedJobViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer: ApplicantSerializer):
+        print("__this run__")
+        # print(self.get_object(),"the object")
         serializer.save(job_id=self.kwargs["pk"], user=self.request.user)
         return super().perform_create(serializer)
 

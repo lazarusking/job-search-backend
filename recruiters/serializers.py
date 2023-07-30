@@ -49,6 +49,7 @@ class SavedJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavedJobs
         fields = "__all__"
+        depth = 1
 
 
 class JobDetailSerializer(serializers.ModelSerializer):
