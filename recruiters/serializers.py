@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.forms import CharField
 from rest_framework import serializers
 
-from accounts.serializers import UserSerializer
+from accounts.serializers import RecruiterProfileSerializer, UserSerializer
 
 from .models import Applicants, Job, SavedJobs, Selected
 
@@ -10,6 +10,8 @@ User = get_user_model()
 
 
 class JobSerializer(serializers.ModelSerializer):
+    recruiter = RecruiterProfileSerializer(many=False, read_only=True,source='recruiter.recruiterprofile')
+
     class Meta:
         model = Job
         fields = "__all__"

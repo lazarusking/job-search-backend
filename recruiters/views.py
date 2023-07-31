@@ -11,8 +11,10 @@ from rest_framework import status
 from django.core.paginator import Paginator
 from django.utils.decorators import method_decorator
 from django.shortcuts import get_object_or_404
+
+from accounts import permissions
 from .models import Job, Applicants, Selected
-from .permissions import IsNotRecruiter, IsOwner, IsJobOwner
+from .permissions import IsNotRecruiter, IsOwner, IsJobOwner, IsRecruiterOrReadOnly
 from .serializers import JobSerializer, ApplicantSerializer, SelectedSerializer
 from .decorators import recruiter_required, normal_user_required
 from accounts.models import Recruiter, User
@@ -32,14 +34,18 @@ class JobsViewSet(viewsets.ModelViewSet):
 
     serializer_class = JobSerializer
     queryset = Job.objects.all().order_by("-id")
-    permission_classes = [IsJobOwner, IsAuthenticated]
+    permission_classes = [IsRecruiterOrReadOnly, IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ["title", "location", "recruiter__username"]
 
     def get_permissions(self):
-        if self.action == "list" or "detail":
+        if self.action in ["list", "detail","retrieve"]:
+            print("list view runs")
             permission_classes = [AllowAny]
             return [permission() for permission in permission_classes]
+        # elif self.action in ["create", "destroy", "update"]:
+        #     permission_classes = [IsRecruiterOrReadOnly]
+        #     return [permission() for permission in permission_classes]
         return super().get_permissions()
 
     def perform_create(self, serializer):
@@ -156,7 +162,7 @@ class SelectionViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         print(kwargs)
-        get_object_or_404(User,id=kwargs["user_id"])
+        get_object_or_404(User, id=kwargs["user_id"])
         if Selected.objects.filter(job_id=kwargs["pk"], applicant_id=kwargs["user_id"]):
             return Response(
                 {"detail": "You have already selected this user"},
@@ -177,7 +183,7 @@ class RecruitersView(viewsets.ModelViewSet):
 
     serializer_class = RecruiterProfileSerializer
     queryset = User.objects.all().filter(is_recruiter=True).order_by("-id")
-    lookup_field = "username"
+    # lookup_field = "username"
     permission_classes = [IsOwner]
 
     def get_serializer_class(self):
@@ -202,8 +208,8 @@ class RecruitersView(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         recruiter_pk = self.kwargs.get("username")
-        # instance = self.get_object()
-        instance = request.user
+        instance = self.get_object()  # get current object with lookup field
+        # instance = request.user # get current auth user
         print(instance.recruiterprofile, request.user)
         serializer = RecruiterProfileSerializer(instance.recruiterprofile, many=False)
         # print(serializer.data)

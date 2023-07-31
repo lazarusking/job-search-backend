@@ -356,7 +356,7 @@ class SavedJobList(viewsets.ModelViewSet):
         # return super().get_queryset()
 
 
-# valid
+# valid 
 class SavedJobViewSet(viewsets.ModelViewSet):
     """Operations for users to save jobs"""
 
