@@ -194,8 +194,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     queryset = Applicants.objects.all().order_by("-id")
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwner, IsNotRecruiter]
 
-    lookup_field = "job"
-    lookup_url_kwarg = "job_id"
+    # lookup_field = "job"
+    # lookup_url_kwarg = "job_id"
     # lookup_url_kwarg = "job"
 
     def get_queryset(self):
@@ -217,7 +217,9 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         print(self.action)
         print(self.queryset)
         print(self.lookup_field, self.lookup_url_kwarg)
-        user = get_object_or_404(self.queryset, applicant=request.user.id)
+        user = get_object_or_404(
+            self.queryset, applicant=request.user.id, job=kwargs["pk"]
+        )
         print(user)
         user.delete()
         return Response(
@@ -226,7 +228,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        if Applicants.objects.filter(job_id=kwargs["pk"]):
+        if Applicants.objects.filter(job_id=kwargs["pk"], applicant=self.request.user):
             print(self.queryset)
             return Response(
                 {"detail": "You have already applied"},
@@ -356,7 +358,7 @@ class SavedJobList(viewsets.ModelViewSet):
         # return super().get_queryset()
 
 
-# valid 
+# valid
 class SavedJobViewSet(viewsets.ModelViewSet):
     """Operations for users to save jobs"""
 
@@ -365,22 +367,25 @@ class SavedJobViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOwner, IsNotRecruiter]
     # lookup_field = "pk"
 
+    lookup_field = "job"
+    lookup_url_kwarg = "job_id"
+
     def get_queryset(self):
         queryset = super().get_queryset()
         job_id = self.kwargs.get("pk")
         print(queryset)
         print(self.request.data)
         print(job_id)
-        print(self.lookup_field )
+        print(self.lookup_field)
         user = self.request.user
         if job_id:
-            queryset = queryset.filter(user=user)
+            queryset = queryset.filter(user=user, job_id=self.kwargs.get("pk"))
         print(queryset)
         return queryset
 
     def destroy(self, request, *args, **kwargs):
         print(self.queryset)
-        saved = get_object_or_404(self.queryset, user=request.user.id,job=kwargs['pk'])
+        saved = get_object_or_404(self.queryset, user=request.user.id, job=kwargs["pk"])
         print(saved)
         saved.delete()
         return Response(
@@ -389,11 +394,11 @@ class SavedJobViewSet(viewsets.ModelViewSet):
         )
 
     def create(self, request, *args, **kwargs):
-        print(request.user,"update func")
-        print(SavedJobs.objects.filter(job_id=kwargs["pk"],user=request.user))
-        job=get_object_or_404(Job,id=kwargs["pk"])
-        if SavedJobs.objects.filter(job=job,user=request.user):
-            print(self.queryset,"queryset exists")
+        print(request.user, "update func")
+        print(SavedJobs.objects.filter(job_id=kwargs["pk"], user=request.user))
+        job = get_object_or_404(Job, id=kwargs["pk"])
+        if SavedJobs.objects.filter(job=job, user=request.user):
+            print(self.queryset, "queryset exists")
             return Response(
                 {"detail": "You have already saved this"},
                 status=status.HTTP_400_BAD_REQUEST,

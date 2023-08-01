@@ -40,7 +40,7 @@ class JobsViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ["list", "detail","retrieve"]:
-            print("list view runs")
+            # print("list view runs")
             permission_classes = [AllowAny]
             return [permission() for permission in permission_classes]
         # elif self.action in ["create", "destroy", "update"]:
