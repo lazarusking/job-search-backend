@@ -39,7 +39,7 @@ class Job(models.Model):
         return self.title
 
     def get_company(self):
-        return self.recruiterprofile.company
+        return self.recruiter.recruiterprofile.company
 
     @admin.display(
         boolean=True,
@@ -61,6 +61,7 @@ class Job(models.Model):
             "new_users": new_users,
             "job_type": self.job_type,
             "location": self.location,
+            "company":self.get_company()
         }
 
     def get_absolute_url(self):

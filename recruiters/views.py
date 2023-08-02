@@ -15,7 +15,12 @@ from django.shortcuts import get_object_or_404
 from accounts import permissions
 from .models import Job, Applicants, Selected
 from .permissions import IsNotRecruiter, IsOwner, IsJobOwner, IsRecruiterOrReadOnly
-from .serializers import JobSerializer, ApplicantSerializer, SelectedSerializer
+from .serializers import (
+    JobDetailSerializer,
+    JobSerializer,
+    ApplicantSerializer,
+    SelectedSerializer,
+)
 from .decorators import recruiter_required, normal_user_required
 from accounts.models import Recruiter, User
 from accounts.serializers import (
@@ -34,13 +39,14 @@ class JobsViewSet(viewsets.ModelViewSet):
 
     serializer_class = JobSerializer
     queryset = Job.objects.all().order_by("-id")
-    permission_classes = [IsRecruiterOrReadOnly, IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsJobOwner]
     filter_backends = [filters.SearchFilter]
     search_fields = ["title", "location", "recruiter__username"]
 
     def get_permissions(self):
-        if self.action in ["list", "detail","retrieve"]:
-            # print("list view runs")
+        if self.action in ["list", "details", "retrieve"]:
+            print("list view runs")
+            print(self.action)
             permission_classes = [AllowAny]
             return [permission() for permission in permission_classes]
         # elif self.action in ["create", "destroy", "update"]:
@@ -71,18 +77,19 @@ class JobsViewSet(viewsets.ModelViewSet):
         for i in queryset:
             extra = i.job_extra_details()
             final_list.append(extra)
-        paginator = Paginator(final_list, 20)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
-        context = {
-            "jobs": final_list,
-        }
-        return Response(final_list)
+        page = self.paginate_queryset(final_list)
+        self.serializer_class = JobDetailSerializer
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def applicants(self, request, *args, **kwargs):
         job = self.get_object()
-        print(request.user)
+        print(request.user,job)
+        print(self.action)
 
         self.serializer_class = ApplicantSerializer
         applicants = job.applicants.all().order_by("-id")

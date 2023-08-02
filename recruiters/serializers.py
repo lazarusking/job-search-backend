@@ -54,15 +54,16 @@ class SavedJobSerializer(serializers.ModelSerializer):
         depth = 1
 
 
-class JobDetailSerializer(serializers.ModelSerializer):
+class JobDetailSerializer(serializers.Serializer):
+    id=serializers.IntegerField()
     title = serializers.CharField()
     user_count = serializers.IntegerField()
     new_users = serializers.IntegerField()
     job_type = serializers.CharField()
     location = serializers.CharField()
+    company = serializers.CharField()
 
     class Meta:
-        model = Job.job_extra_details
         fields = "__all__"
 
 
