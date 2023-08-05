@@ -13,7 +13,7 @@ User = get_user_model()
 class UserRegisterSerializer(RegisterSerializer):
     email = serializers.EmailField(
         required=True,
-        max_length=32,
+        max_length=255,
         validators=[
             UniqueValidator(
                 queryset=User.objects.all(),
@@ -84,7 +84,7 @@ class UserRegisterSerializer(RegisterSerializer):
 class RecruiterRegisterSerializer(RegisterSerializer):
     email = serializers.EmailField(
         required=True,
-        max_length=32,
+        max_length=255,
         validators=[
             UniqueValidator(
                 queryset=User.objects.all(),
@@ -235,6 +235,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+        print(token)
+        print(user)
         token["username"] = user.username
         token["email"] = user.email
         token["is_recruiter"] = user.is_recruiter

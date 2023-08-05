@@ -1,16 +1,28 @@
 from django.contrib.auth import get_user_model
-from django.forms import CharField
 from rest_framework import serializers
 
-from accounts.serializers import RecruiterProfileSerializer, UserSerializer
+from accounts.serializers import (
+    ProfileSerializer,
+    RecruiterProfileSerializer,
+    UserSerializer,
+)
 
 from .models import Applicants, Job, SavedJobs, Selected
 
 User = get_user_model()
 
 
+class UnNestedJobSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Job
+        fields = "__all__"
+        read_only_fields = ["recruiter"]
+
+
 class JobSerializer(serializers.ModelSerializer):
-    recruiter = RecruiterProfileSerializer(many=False, read_only=True,source='recruiter.recruiterprofile')
+    recruiter = RecruiterProfileSerializer(
+        many=False, read_only=True, source="recruiter.recruiterprofile"
+    )
 
     class Meta:
         model = Job
@@ -26,18 +38,18 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 class ApplicantSerializer(serializers.ModelSerializer):
-    job = JobSerializer(many=False, read_only=True)
-    applicant = UserSerializer(read_only=True)
+    job = UnNestedJobSerializer(many=False, read_only=True)
+    applicant = ProfileSerializer(read_only=True, source="applicant.profile")
 
     class Meta:
         model = Applicants
         fields = "__all__"
-        depth = 1
+        # depth = 1
 
 
 class SelectedSerializer(serializers.ModelSerializer):
-    job = JobSerializer(many=False, read_only=True)
-    applicant = UserSerializer(read_only=True)
+    job = UnNestedJobSerializer(many=False, read_only=True)
+    applicant = ProfileSerializer(read_only=True, source="applicant.profile")
 
     class Meta:
         model = Selected
@@ -55,7 +67,7 @@ class SavedJobSerializer(serializers.ModelSerializer):
 
 
 class JobDetailSerializer(serializers.Serializer):
-    id=serializers.IntegerField()
+    id = serializers.IntegerField()
     title = serializers.CharField()
     user_count = serializers.IntegerField()
     new_users = serializers.IntegerField()

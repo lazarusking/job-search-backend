@@ -1,34 +1,30 @@
 # Create your views here.
 # permission_classes= (permissions.IsAuthenticated)
-import json
 
 from dj_rest_auth.registration.views import RegisterView
-from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
-from django_countries import Countries, countries
-from rest_framework import generics, status, viewsets, permissions
+from django_countries import countries
+from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import (
+    AllowAny,
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
-    AllowAny,
 )
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from recruiters.models import Applicants, Job, SavedJobs
-from recruiters.permissions import IsNotRecruiter, IsRecruiter, IsRecruiterOrReadOnly
+from recruiters.permissions import IsNotRecruiter
 from recruiters.serializers import (
     ApplicantSerializer,
-    JobSerializer,
     SavedJobSerializer,
     SelectedSerializer,
 )
 
 from .models import Profile, User
-from .permissions import IsOwner, IsOwnerOrReadOnly
+from .permissions import IsOwner
 from .serializers import (
     MyTokenObtainPairSerializer,
     ProfileSerializer,
@@ -47,19 +43,19 @@ class RecruiterRegisterView(RegisterView):
     # queryset = Recruiter.objects.all().order_by("-id")
 
 
-class UsersAPIView(APIView):
-    def get(self, request):
-        users = User.objects.all()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
+# class UsersAPIView(APIView):
+#     def get(self, request):
+#         users = User.objects.all()
+#         serializer = UserSerializer(users, many=True)
+#         return Response(serializer.data)
 
-    def post(self, request):
-        serializer = UserRegisterSerializer(data=request.data)
-        print("This serializer ran")
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     def post(self, request):
+#         serializer = UserRegisterSerializer(data=request.data)
+#         print("This serializer ran")
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -103,13 +99,13 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def retrieve(self, request, *args, **kwargs):
-        pk = self.kwargs.get("pk")
+        # pk = self.kwargs.get("pk")
         instance = self.get_object()
         # print(repr(instance), 'profile instance')
         try:
             # user = Profile.objects.get(pk=pk)
             instance = instance.profile
-        except Profile.DoesNotExist as e:
+        except Profile.DoesNotExist:
             return Response(exception=True, status=status.HTTP_404_NOT_FOUND)
 
         print(instance, request.user)
@@ -241,36 +237,6 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         serializer.save(job_id=self.kwargs["pk"], applicant=self.request.user)
         return super().perform_create(serializer)
 
-    # def perform_update(self, serializer: ApplicantSerializer):
-    #     print(repr(self.get_object()))
-    #     # self.queryset = Applicants.objects.all()
-    #     # print(self.kwargs)
-    #     serializer.save(job_id=self.kwargs["pk"], applicant=self.request.user)
-    #     return super().perform_update(serializer)
-
-    # def update(self, request, *args, **kwargs):
-    #     instance = self.get_object()
-    #     serializer = ApplicantSerializer(instance, data=request.data, many=False)
-    #     print(request.data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    #     # return super().update(request, *args, **kwargs)
-
-    # def retrieve(self, request, *args, **kwargs):
-    #     recruiter_pk = self.kwargs.get("username")
-    #     # self.queryset = Job.objects.all()
-    #     instance = self.get_object()
-    #     instance = Job.objects.get(id=kwargs["pk"])
-    #     print(kwargs)
-    #     # instance = request.user
-    #     print(instance, request.user)
-    #     # serializer = ApplicantSerializer(instance, many=False)
-    #     serializer = JobSerializer(instance, many=False)
-    #     # print(serializer.data)
-    #     return Response(serializer.data)
-
 
 class AppliedList(generics.ListAPIView):
     """List operations for a user's applied jobs"""
@@ -297,7 +263,7 @@ class SelectedList(generics.ListAPIView):
 
 
 class SavedList(generics.ListAPIView):
-    """List operations for jobs user got saved"""
+    """List operations for jobs a user saved"""
 
     serializer_class = SelectedSerializer
     permission_classes = [IsNotRecruiter, IsOwner]
@@ -306,56 +272,6 @@ class SavedList(generics.ListAPIView):
         user = self.request.user
         # return Applicants.objects.filter(applicant=user).order_by("-id")
         return user.saved.all().order_by("-id")
-
-
-class SavedJobList(viewsets.ModelViewSet):
-    """Operations for jobs user saved"""
-
-    serializer_class = JobSerializer
-    queryset = Job.objects.all().order_by("-id")
-    # permission_classes = [IsAuthenticated, IsRecruiterOrReadOnly]
-    # lookup_field="job"
-    # lookup_url_kwarg = "id"
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=True, methods=["post"])
-    def add_job(self, request, pk=None, *args, **kwargs):
-        print(repr(self.get_object()), ".......")
-
-    def perform_update(self, serializer: ApplicantSerializer):
-        job = self.get_object()
-        print(repr(self.get_object()))
-        self.serializer_class = SavedJobSerializer
-        self.queryset = SavedJobs.objects.all()
-        print(self.serializer_class, ".....")
-        print(repr(serializer.instance))
-        self.request.user.saved.add(job)
-        # serializer.save(job=job, user=self.request.user)
-        # return super().perform_update(serializer)
-
-    def get_permissions(self):
-        if self.request.method in permissions.SAFE_METHODS:
-            print(self.request.method)
-            permission_classes = [IsAuthenticated]
-            return [permission() for permission in permission_classes]
-        return super().get_permissions()
-
-    def get_serializer_class(self):
-        if self.request.method not in permissions.SAFE_METHODS:
-            print(self.request.method)
-            return SavedJobSerializer
-        return JobSerializer
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        user = self.request.user
-        print(self.lookup_field, self.kwargs)
-        print(self.queryset)
-        job_id = self.kwargs.get("id")
-        if job_id:
-            queryset = queryset.filter(id=job_id)
-        return queryset
-        # return super().get_queryset()
 
 
 # valid

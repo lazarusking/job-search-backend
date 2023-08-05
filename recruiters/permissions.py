@@ -28,8 +28,23 @@ class IsOwner(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         # Write permissions are only allowed to the owner of the object.
-        print(repr(obj),obj == request.user)
-        return obj.user == request.user
+        print(repr(obj), obj == request.user)
+        return obj == request.user
+
+
+class CanSelectAndApply(permissions.BasePermission):
+    """
+    Custom permission to only allow owners of an object to edit it.
+    """
+
+    def has_permission(self, request, view):
+        print(view)
+        return request.user and request.user.is_recruiter
+
+    def has_object_permission(self, request, view, obj):
+        # Write permissions are only allowed to the owner of the object.
+        print(repr(obj), obj.job.recruiter == request.user)
+        return obj.job.recruiter == request.user
 
 
 class IsJobOwner(permissions.BasePermission):
@@ -41,7 +56,7 @@ class IsJobOwner(permissions.BasePermission):
         return request.user and request.user.is_recruiter
 
     def has_object_permission(self, request, view, obj):
-        print(obj,request.user)
+        print(obj, request.user)
         # Write permissions are only allowed to the owner of the object.
         return obj.recruiter == request.user
 

@@ -19,13 +19,19 @@ router.register(r"jobs", views.JobsViewSet)
 # router.register(r"select", views.SelectionViewSet)
 router.register(r"", views.RecruitersView)
 
-applicant_router = create_router(r"", views.SelectionViewSet)
+# applicant_router = create_router(r"", views.SelectionViewSet)
 urlpatterns = [
     # path('', views.JobAPIView.as_view(), name="index"),
     # path("jo/<int:pk>/select/<int:user_id>/", include(applicant_router.urls)),
     path(
         "jobs/<int:pk>/select/<int:user_id>/",
         views.SelectionViewSet.as_view(
+            {"get": "list", "post": "create", "delete": "destroy"}
+        ),
+    ),
+    path(
+        "jobs/<int:pk>/apply/<int:user_id>/",
+        views.ApplicationViewSet.as_view(
             {"get": "list", "post": "create", "delete": "destroy"}
         ),
     ),
