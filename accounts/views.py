@@ -67,6 +67,7 @@ class UserViewSet(viewsets.ModelViewSet):
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsAuthenticated, IsAuthenticatedOrReadOnly]
 
+    """ returns a different serializer for different request methodss"""
     def get_serializer_class(self):
         if self.action == "list":
             return UserSerializer
@@ -74,10 +75,11 @@ class UserViewSet(viewsets.ModelViewSet):
             return ProfileSerializer
         else:
             return super().get_serializer_class()
-
+        
+    """ Api view for updating users' details"""
     def update(self, request, *args, **kwargs):
         try:
-            instance: User = self.get_object()
+            instance = self.get_object()
             instance = instance.profile
         except Profile.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -97,7 +99,8 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+   
+    """ Api view for retrieving users' details"""
     def retrieve(self, request, *args, **kwargs):
         # pk = self.kwargs.get("pk")
         instance = self.get_object()
@@ -114,6 +117,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return Response(serializer.data)
 
+    """ Api view for users' applied users"""
     @action(detail=True, methods=["get"])
     def applied(self, request, *args, **kwargs):
         user = self.get_object()
@@ -126,7 +130,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
-
+    """ Api view for users' selected users"""
     @action(detail=True, methods=["get"])
     def selected(self, request, *args, **kwargs):
         job = self.get_object()
@@ -208,6 +212,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         # return self.request.user
         return super().get_object()
 
+    """ Api view for deleting a users' application from a job"""
+
     def destroy(self, request, *args, **kwargs):
         print(kwargs)
         print(self.action)
@@ -222,7 +228,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             {"detail": "Removed Successfully"},
             status=status.HTTP_200_OK,
         )
-
+    
+    """ Api view for creating an application to a job"""
     def create(self, request, *args, **kwargs):
         if Applicants.objects.filter(job_id=kwargs["pk"], applicant=self.request.user):
             print(self.queryset)
@@ -251,7 +258,7 @@ class AppliedList(generics.ListAPIView):
 
 
 class SelectedList(generics.ListAPIView):
-    """List operations for jobs user got selected"""
+    """List operations for jobs a user got selected"""
 
     serializer_class = SelectedSerializer
     permission_classes = [IsNotRecruiter, IsOwner]
@@ -301,7 +308,8 @@ class SavedJobViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         print(self.queryset)
-        saved = get_object_or_404(self.queryset, user=request.user.id, job=kwargs["pk"])
+        saved = get_object_or_404(
+            self.queryset, user=request.user.id, job=kwargs["pk"])
         print(saved)
         saved.delete()
         return Response(
@@ -356,6 +364,7 @@ def user_profile(request, pk):
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
+    """ Obtain the jwt token for login"""
     serializer_class = MyTokenObtainPairSerializer
 
 

@@ -9,6 +9,8 @@ from rest_framework.decorators import api_view, action
 from rest_framework import status
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
+from django.http import StreamingHttpResponse
+from recruiters.resume_llm import create_index, search_resumes
 
 from .models import Job, Applicants, Selected
 from .permissions import CanSelectAndApply, IsOwner, IsJobOwner
@@ -27,8 +29,14 @@ from accounts.serializers import (
 )
 
 
+def my_streaming_generator(response):
+    for i in response:
+        yield i
+
 # @api_view(['GET'])
 # @method_decorator([recruiter_required],name='dispatch')
+
+
 class JobsViewSet(viewsets.ModelViewSet):
     """List, retreive operations for a job"""
 
@@ -67,6 +75,36 @@ class JobsViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get", "post"])
+    def resume_analysis(self, request, *args, **kwargs):
+        job = self.get_object()
+        print(request.user, job, "resume_analysis")
+        print(self.action)
+
+        self.serializer_class = ApplicantSerializer
+        applicants: Applicants = job.applicants.all().order_by("-id")
+        resume_paths = []
+        for i in applicants:
+            user_resume = i.applicant.profile.resume
+            resume_paths.append(user_resume)
+        index = create_index(resume_paths)
+        if request.method == "POST":
+            query = request.data.get("query")
+            print(query)
+            # result = search_resumes(index, query)
+            # print(result)
+            # response = StreamingHttpResponse(
+            #     my_streaming_generator(search_resumes(index, query)), content_type='text/event-stream')
+            # return response
+            return StreamingHttpResponse(search_resumes(index, query))
+
+        page = self.paginate_queryset(applicants)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["get", "delete"])
@@ -159,7 +197,8 @@ class SelectionViewSet(viewsets.ModelViewSet):
         print(self.action)
         print(self.queryset)
         user_id = self.kwargs.get("user_id")
-        user = get_object_or_404(self.queryset, applicant=user_id, job=kwargs["pk"])
+        user = get_object_or_404(
+            self.queryset, applicant=user_id, job=kwargs["pk"])
         print(user)
         user.delete()
         return Response(
@@ -182,7 +221,8 @@ class SelectionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer: SelectedSerializer):
         # self.queryset = Job.objects.all().order_by("-id")
         # user = self.get_object()
-        serializer.save(job_id=self.kwargs["pk"], applicant_id=self.kwargs["user_id"])
+        serializer.save(
+            job_id=self.kwargs["pk"], applicant_id=self.kwargs["user_id"])
         return super().perform_create(serializer)
 
 
@@ -216,7 +256,8 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         print(self.action)
         print(self.queryset)
         user_id = self.kwargs.get("user_id")
-        user = get_object_or_404(self.queryset, applicant=user_id, job=kwargs["pk"])
+        user = get_object_or_404(
+            self.queryset, applicant=user_id, job=kwargs["pk"])
         print(user)
         user.delete()
         return Response(
@@ -241,12 +282,13 @@ class ApplicationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer: SelectedSerializer):
         # self.queryset = Job.objects.all().order_by("-id")
         # user = self.get_object()
-        serializer.save(job_id=self.kwargs["pk"], applicant_id=self.kwargs["user_id"])
+        serializer.save(
+            job_id=self.kwargs["pk"], applicant_id=self.kwargs["user_id"])
         return super().perform_create(serializer)
 
 
 class RecruitersView(viewsets.ModelViewSet):
-    """Operations for recruiters"""
+    """List, retreive,delete operations for recruiters"""
 
     serializer_class = RecruiterProfileSerializer
     queryset = User.objects.all().filter(is_recruiter=True).order_by("-id")
@@ -292,7 +334,8 @@ class RecruitersView(viewsets.ModelViewSet):
         instance = self.get_object()  # get current object with lookup field
         # instance = request.user # get current auth user
         print(instance.recruiterprofile, request.user)
-        serializer = RecruiterProfileSerializer(instance.recruiterprofile, many=False)
+        serializer = RecruiterProfileSerializer(
+            instance.recruiterprofile, many=False)
         # print(serializer.data)
         return Response(serializer.data)
 
@@ -306,7 +349,8 @@ def job_search_list(request):
     if query is None:
         object_list = Job.objects.all()
     else:
-        title_list = Job.objects.filter(title__icontains=query).order_by("-date_posted")
+        title_list = Job.objects.filter(
+            title__icontains=query).order_by("-date_posted")
         skill_list = Job.objects.filter(skills_required__icontains=query).order_by(
             "-date_posted"
         )
@@ -330,7 +374,8 @@ def job_search_list(request):
     if loc is None:
         locat = Job.objects.all()
     else:
-        locat = Job.objects.filter(location__icontains=loc).order_by("-date_posted")
+        locat = Job.objects.filter(
+            location__icontains=loc).order_by("-date_posted")
     final_list = []
     for i in object_list:
         if i in locat:
