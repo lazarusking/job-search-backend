@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "recruiters",
     "phonenumber_field",
     # 'polls.apps.PollsConfig',
+    'django_cleanup.apps.CleanupConfig',
 ]
 AUTH_USER_MODEL = "accounts.User"
 
