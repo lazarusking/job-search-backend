@@ -15,6 +15,7 @@ from recruiters.resume_llm import create_index, search_resumes
 from .models import Job, Applicants, Selected
 from .permissions import CanSelectAndApply, IsOwner, IsJobOwner
 from .serializers import (
+    JobDashboardSerializer,
     JobDetailSerializer,
     JobSerializer,
     ApplicantSerializer,
@@ -33,10 +34,6 @@ def my_streaming_generator(response):
     for i in response:
         yield i
 
-# @api_view(['GET'])
-# @method_decorator([recruiter_required],name='dispatch')
-
-
 class JobsViewSet(viewsets.ModelViewSet):
     """List, retreive operations for a job"""
 
@@ -50,11 +47,9 @@ class JobsViewSet(viewsets.ModelViewSet):
         if self.action in ["list", "details", "retrieve"]:
             # print("list view runs")
             # print(self.action)
+            print(repr(self.request.user),self.action)
             permission_classes = [AllowAny]
             return [permission() for permission in permission_classes]
-        # elif self.action in ["create", "destroy", "update"]:
-        #     permission_classes = [IsRecruiterOrReadOnly]
-        #     return [permission() for permission in permission_classes]
         return super().get_permissions()
 
     def perform_create(self, serializer):
@@ -79,7 +74,7 @@ class JobsViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get", "post"])
     def resume_analysis(self, request, *args, **kwargs):
-        job = self.get_object()
+        job:Job = self.get_object()
         print(request.user, job, "resume_analysis")
         print(self.action)
 
@@ -98,7 +93,7 @@ class JobsViewSet(viewsets.ModelViewSet):
             # response = StreamingHttpResponse(
             #     my_streaming_generator(search_resumes(index, query)), content_type='text/event-stream')
             # return response
-            return StreamingHttpResponse(search_resumes(index, query))
+            return StreamingHttpResponse(search_resumes(index, query,job.description))
 
         page = self.paginate_queryset(applicants)
         if page is not None:
@@ -139,32 +134,14 @@ class JobsViewSet(viewsets.ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(applicants, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=["get"],permission_classes=[IsAuthenticated])
+    def dashboard(self, request, *args, **kwargs):
+        queryset = super().get_queryset()
+        self.serializer_class = JobDashboardSerializer
+        serializer = self.get_serializer(queryset,many=False)
+        return Response(serializer.data)
 
-    # @action(
-    #     detail=True, url_path="select/(?P<id>[^/.]+)", methods=["get", "put",
-    # "delete"]
-    # )
-    # def select(self, request, pk=None, *args, **kwargs):
-    #     job = self.get_object()
-    #     print(request.user)
-    #     print(self.kwargs, kwargs)
-    #     self.lookup_url_kwarg = "pk"
-    #     self.queryset = Selected.objects.all().order_by("-id")
-    #     self.serializer_class = SelectedSerializer
-    #     print(repr(self.get_object()), repr(job))
-    #     user = self.get_object()
-
-    #     if request.method == "PUT":
-    #         serializer = SelectedSerializer(user, data=request.data, many=False)
-    #         if serializer.is_valid():
-    #             serializer.save(job=job, applicant_id=self.kwargs["id"])
-    #             return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    #     applicants = job.selected.all().order("-id")
-    #     print(repr(applicants))
-    #     serializer = SelectedSerializer(applicants, many=True)
-    #     return Response(serializer.data)
 
 
 class SelectionViewSet(viewsets.ModelViewSet):

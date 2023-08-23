@@ -202,7 +202,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         job_id = self.kwargs.get("pk")
         user = self.request.user
-        print(user, self.kwargs, job_id, queryset)
+        # print(user, self.kwargs, job_id, queryset)
         if job_id:
             queryset = queryset.filter(job=job_id, applicant=user)
         print(queryset)

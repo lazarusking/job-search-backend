@@ -33,12 +33,32 @@ def create_index(pdf_folder_path: list[str]):
     print(loaders)
     return index
 
+def prompt_decorator(func):
+    def wrapper(*args, **kwargs):
+        job_desc= func(*args, **kwargs)
+        prompt_template = """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
+        You are a chatbot that helps recruiters analyze resumes based on a job description. You will be passed information on some resumes, try your best to answer accurately about them based on the job description.
 
-def load_qa_chain_with_prompt(llm):
+        Use three sentences maximum and keep the answer as concise as possible. 
+        Always say "thanks for asking!" at the end of the answer. 
+        {context}
+
+        Job Description: {job_desc}
+        Question: {question}
+        Answer:"""
+        return prompt_template.format(job_desc=job_desc,context='{context}',question='{question}')
+    return wrapper
+
+
+def load_qa_chain_with_prompt(llm,job_desc):
     # Define the prompt template for the QA chain
+    @prompt_decorator
+    def my_func(desc):
+        return desc
 
+    result = my_func(job_desc)
     prompt_template = """Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
-    You will be passed documents about resume, try your best to answer accurately about them.
+    You will be passed documents about resume, try your best to answer accurately about them based on this job description.
     Use three sentences maximum and keep the answer as concise as possible. 
     Always say "thanks for asking!" at the end of the answer. 
 
@@ -46,13 +66,13 @@ def load_qa_chain_with_prompt(llm):
 
     Question: {question}
     Answer:"""
-    PROMPT = PromptTemplate(template=prompt_template,
+    PROMPT = PromptTemplate(template=result,
                             input_variables=["context", "question"])
 
-    return load_qa_chain(llm=llm, chain_type="stuff", prompt=PROMPT)
+    return load_qa_chain(llm=llm, chain_type="stuff", prompt=PROMPT,verbose=True)
 
 
-def search_resumes(index, query: str):
+def search_resumes(index, query: str,job_desc:str):
     # Set the OpenAI API key
     llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo",
                      streaming=True, callbacks=[StreamingStdOutCallbackHandler()])
@@ -60,7 +80,7 @@ def search_resumes(index, query: str):
     # Create the VectorstoreIndex
 
     # Load the QA chain with the specified prompt template
-    qa_chain = load_qa_chain_with_prompt(llm)
+    qa_chain = load_qa_chain_with_prompt(llm,job_desc)
 
     # Create a RetrievalQA instance with the QA chain and index retriever
     qa = RetrievalQA(combine_documents_chain=qa_chain,
@@ -68,4 +88,5 @@ def search_resumes(index, query: str):
 
     # Run the query and return the result
     result = qa.run(query)
+    # return qa({"query": query,"job_desc":job_desc})['result']
     return result

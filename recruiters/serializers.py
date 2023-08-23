@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+from django.utils import timezone
 
 from accounts.serializers import (
     ProfileSerializer,
@@ -23,6 +24,7 @@ class JobSerializer(serializers.ModelSerializer):
     recruiter = RecruiterProfileSerializer(
         many=False, read_only=True, source="recruiter.recruiterprofile"
     )
+    user_has_saved = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -35,6 +37,46 @@ class JobSerializer(serializers.ModelSerializer):
             "skills_required": "Enter all the skills required each separated by commas.",
             "link": "If you want candidates to apply on your company website rather than on our website, please provide the link where candidates can apply. Otherwise, please leave it blank or candidates would not be able to apply directly!",
         }
+
+    def get_user_has_saved(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return SavedJobs.objects.filter(user=user, job=obj).exists()
+        return False
+
+
+class JobDashboardSerializer(serializers.ModelSerializer):
+
+    active_jobs = serializers.SerializerMethodField()
+    expired_jobs = serializers.SerializerMethodField()
+    job_count = serializers.SerializerMethodField()
+    saved_jobs = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Job
+        fields = ['active_jobs','expired_jobs','job_count','saved_jobs']
+        # read_only_fields = ["recruiter"]
+
+    def get_active_jobs(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return Job.objects.filter(recruiter=user,deadline__gte=timezone.now()).count()
+        
+    def get_expired_jobs(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return Job.objects.filter(recruiter=user,deadline__lte=timezone.now()).count()
+
+    def get_job_count(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            return Job.objects.filter(recruiter=user).count()
+    def get_saved_jobs(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            print(obj)
+            return SavedJobs.objects.filter(job__recruiter=user).count()
+
 
 
 class ApplicantSerializer(serializers.ModelSerializer):

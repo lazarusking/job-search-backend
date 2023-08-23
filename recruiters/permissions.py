@@ -58,6 +58,7 @@ class IsJobOwner(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         print(obj, request.user)
         # Write permissions are only allowed to the owner of the object.
+        print(request,'perms')
         return obj.recruiter == request.user
 
 
