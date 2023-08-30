@@ -50,7 +50,7 @@ Access the backend at http://127.0.0.1:8000/.
 
 ## Configuration
 
-To configure the backend, you can edit the `settings.py` file in your app. Create an `.env` file following the `.env.example`. Update database in `.env` file, API keys, and other relevant configurations.
+To configure the backend, you can edit the `settings.py` file in your app. Create a new `.env` file following the `.env.example`. Update your database details in `.env` file, API keys, and other relevant configurations.
 
 ## Features
 
